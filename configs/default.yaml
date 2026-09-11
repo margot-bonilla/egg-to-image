@@ -31,3 +31,4 @@ training:
   temperature: 0.07           # InfoNCE temperature tau
   lr_scheduler: "cosine"
   val_check_interval_epochs: 1
+
