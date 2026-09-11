@@ -1,0 +1,33 @@
+# Default Configuration for Neural Interfaces 2026 - Track 1: EEG-to-Image
+experiment_name: "baseline_dinov2_alignment"
+
+# EEG Hardware & Preprocessing (Alljoined-1.6M / Emotiv standard)
+dataset:
+  name: "Alljoined-1.6M"
+  n_channels: 32
+  sample_rate_hz: 256
+  epoch_duration_s: 1.0       # 256 samples per epoch
+  n_times: 256
+  bandpass_low_hz: 0.1
+  bandpass_high_hz: 100.0
+
+# Target Visual Foundation Model
+target_model:
+  name: "facebook/dinov2-giant"
+  embedding_dim: 1536
+
+# Architecture
+model:
+  hidden_dim: 512
+  dropout: 0.25
+  normalize_output: true
+
+# Training Hyperparameters
+training:
+  batch_size: 128
+  epochs: 50
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-4
+  temperature: 0.07           # InfoNCE temperature tau
+  lr_scheduler: "cosine"
+  val_check_interval_epochs: 1
