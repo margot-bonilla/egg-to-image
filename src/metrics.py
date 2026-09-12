@@ -38,30 +38,26 @@ def compute_retrieval_accuracies(
         3. Determining whether the ground-truth target index is within the top-k retrieved ranks.
     """
     if target_indices is None:
-        assert query_embeddings.size(0) == gallery_embeddings.size(0), (
+        assert query_embeddings.size(0) <= gallery_embeddings.size(0), (
             "When target_indices is None, query_embeddings and gallery_embeddings must have the same size."
         )
         target_indices = torch.arange(query_embeddings.size(0), device=query_embeddings.device)
 
-    # TODO [Step 1]: L2-normalize both query_embeddings and gallery_embeddings along dimension -1.
-    # Hint: Use F.normalize(..., p=2, dim=-1).
-    # Why? Cosine similarity between vectors u and v is (u / ||u||) @ (v / ||v||).T.
-    raise NotImplementedError("TODO: Implement Step 1 - L2-normalize query and gallery embeddings")
+    # L2-Normalize
+    query_embeddings_norm = F.normalize(query_embeddings, p=2, dim=-1)
+    gallery_embeddings_norm = F.normalize(gallery_embeddings, p=2, dim=-1)
 
-    # TODO [Step 2]: Compute the pairwise cosine similarity matrix between all queries and gallery items.
-    # Hint: Matrix multiplication of normalized queries (N, D) and normalized gallery transpose (D, M).
-    # What shape should the resulting similarity matrix have? (N, M)
-    # similarity = ...
+    # Cosine Similarity
+    similarity = query_embeddings_norm @ gallery_embeddings_norm.T
 
-    # TODO [Step 3]: Find the indices of the top-k highest similarity candidates for each query.
-    # Hint: Use torch.topk(similarity, k=max_k, dim=-1, largest=True, sorted=True).
-    # The returned values will be (values, top_indices), where top_indices has shape (N, max_k).
-    # _, top_indices = ...
+    max_k = max(top_k)
+    _, top_indices = torch.topk(similarity, k=max_k, dim=-1, largest=True, sorted=True)
 
-    # TODO [Step 4]: Check for each query if target_indices appears in the top-k retrieved indices.
-    # Hint: Compare top_indices against target_indices.unsqueeze(1).
-    # For each k in top_k:
-    #   Check if target appears in [:k] ranks -> boolean tensor of shape (N,)
-    #   Compute the mean across N samples -> float accuracy
-    # results = {}
-    # return results
+    correct = (top_indices == target_indices.unsqueeze(1))
+    results:Dict[str,float] = dict()
+    for k in top_k:
+        hits = correct[:, :k].any(dim=-1)
+        acc = hits.float().mean().item()
+        results[f"top{k}_acc"] = acc
+
+    return results
