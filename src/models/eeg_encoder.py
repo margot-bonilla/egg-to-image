@@ -48,51 +48,41 @@ class EEGToImageEncoder(nn.Module):
         self.output_dim = output_dim
         self.normalize_output = normalize_output
 
-        # ---------------------------------------------------------------------
-        # TODO [Layer 1 - Temporal Convolution]:
-        # Filter across time within each channel (learns frequency band features).
-        # Expected input shape: (B, 1, n_chans, n_times)
-        # We apply a 2D conv with kernel_size=(1, 31), stride=1, padding=(0, 15)
-        # to preserve temporal length. Out channels: 32.
-        # Follow with BatchNorm2d(32).
-        # ---------------------------------------------------------------------
-        # self.temporal_conv = nn.Sequential(
-        #     nn.Conv2d(1, 32, kernel_size=(1, 31), stride=1, padding=(0, 15), bias=False),
-        #     nn.BatchNorm2d(32),
-        # )
-        self.temporal_conv = None
+        self.temporal_conv = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=(1, 31), stride=1, padding=(0, 15), bias=False),
+            nn.BatchNorm2d(32),
+        )
 
-        # ---------------------------------------------------------------------
-        # TODO [Layer 2 - Spatial Depthwise Convolution]:
-        # Filter across all EEG channels (learns spatial topographies / montages).
-        # We apply a 2D conv with kernel_size=(n_chans, 1) to collapse channels from n_chans to 1.
-        # Out channels: 64. Follow with BatchNorm2d, ELU activation, AvgPool2d(1, 4), and Dropout.
-        # ---------------------------------------------------------------------
-        # self.spatial_conv = nn.Sequential(
-        #     nn.Conv2d(32, 64, kernel_size=(n_chans, 1), groups=1, bias=False),
-        #     nn.BatchNorm2d(64),
-        #     nn.ELU(),
-        #     nn.AvgPool2d(kernel_size=(1, 4), stride=(1, 4)),
-        #     nn.Dropout(dropout),
-        # )
-        self.spatial_conv = None
+        self.spatial_conv = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=(n_chans, 1), groups=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1, 4), stride=(1, 4)),
+            nn.Dropout(dropout),
+        )
 
-        # ---------------------------------------------------------------------
-        # TODO [Layer 3 - Separable Temporal Convolution]:
-        # Depthwise temporal conv (kernel=(1, 15), groups=64) followed by
-        # Pointwise conv (kernel=(1, 1), out_channels=128), BatchNorm, ELU, AvgPool2d(1, 4), Dropout.
-        # ---------------------------------------------------------------------
-        # self.sep_conv = ...
-        self.sep_conv = None
+        self.sep_conv = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=(1, 15), padding=(0, 7), groups=64, bias=False),
+            nn.Conv2d(64, 128, kernel_size=(1, 1), bias=False),
+            nn.BatchNorm2d(128),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1,4), stride=(1,4)),
+            nn.Dropout(dropout)
+        )
 
-        # ---------------------------------------------------------------------
-        # TODO [Layer 4 - Projection Head]:
-        # 1. Determine the flattened feature dimension after convolutions.
-        #    Hint: Pass a dummy tensor (1, 1, n_chans, n_times) through the conv blocks.
-        # 2. Define an MLP projection head:
-        #    Linear(flattened_dim, hidden_dim) -> BatchNorm1d(hidden_dim) -> GELU() -> Dropout -> Linear(hidden_dim, output_dim)
-        # ---------------------------------------------------------------------
-        self.projection_head = None
+        with torch.no_grad():
+            dummy = torch.zeros(1, 1, n_chans, n_times)
+            feat = self._forward_features(dummy)
+            flattened_dim = feat.shape[1]
+
+        self.projection_head = nn.Sequential(
+            nn.Linear(flattened_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, output_dim)
+        )
+
 
     def _forward_features(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -100,8 +90,11 @@ class EEGToImageEncoder(nn.Module):
         Input x: (B, 1, n_chans, n_times)
         Output: (B, flattened_features)
         """
-        # TODO: Implement feature extraction forward pass
-        raise NotImplementedError("TODO: Implement _forward_features")
+        x = self.temporal_conv(x)
+        x = self.spatial_conv(x)
+        x = self.sep_conv(x)
+
+        return torch.flatten(x, start_dim=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -114,10 +107,10 @@ class EEGToImageEncoder(nn.Module):
         if x.dim() == 3:
             x = x.unsqueeze(1)
 
-        # TODO [Step 1]: Extract features using self._forward_features(x)
-        # TODO [Step 2]: Project features into visual space using self.projection_head(features)
-        # TODO [Step 3]: If self.normalize_output is True, L2-normalize embeddings along dim=-1
-        raise NotImplementedError("TODO: Implement forward pass")
+        features = self._forward_features(x)
+        emb = self.projection_head(features)
+
+        return F.normalize(emb, p=2, dim=-1) if self.normalize_output else emb
 
     @torch.inference_mode()
     def predict(self, x: torch.Tensor) -> torch.Tensor:

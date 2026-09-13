@@ -50,25 +50,16 @@ class InfoNCELoss(nn.Module):
         Returns:
             Scalar tensor: InfoNCE contrastive loss.
         """
-        # TODO [Step 1]: L2-normalize both pred_emb and target_emb along dim=-1.
-        # Hint: pred_norm = F.normalize(pred_emb, p=2, dim=-1)
-        raise NotImplementedError("TODO: Implement Step 1 - L2-normalize pred_emb and target_emb")
+        pred_norm = F.normalize(pred_emb, p=2, dim=-1)
+        target_norm = F.normalize(target_emb, p=2, dim=-1)
 
-        # TODO [Step 2]: Compute scaled cosine similarity matrix (logits).
-        # Shape must be (B, B), where entry (i, j) is cosine similarity between
-        # the i-th EEG prediction and the j-th image target divided by self.temperature.
-        # Hint: torch.matmul(pred_norm, target_norm.T) / self.temperature
-        # logits = ...
+        logits = (pred_norm @ target_norm.T) / self.temperature
+        labels = torch.arange(pred_emb.size(0), device=pred_emb.device)
 
-        # TODO [Step 3]: Create target labels [0, 1, ..., B-1] on the same device.
-        # Hint: torch.arange(B, device=pred_emb.device)
-        # labels = ...
+        loss_eeg_to_img = F.cross_entropy(logits, labels)
+        loss_img_to_eeg = F.cross_entropy(logits.T, labels)
 
-        # TODO [Step 4]: Compute bidirectional cross-entropy loss and average them.
-        # Hint:
-        # loss_eeg_to_img = F.cross_entropy(logits, labels)
-        # loss_img_to_eeg = F.cross_entropy(logits.T, labels)
-        # return (loss_eeg_to_img + loss_img_to_eeg) / 2.0
+        return (loss_eeg_to_img + loss_img_to_eeg) / 2.0
 
 
 class CosineMSEHybridLoss(nn.Module):
