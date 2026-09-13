@@ -1,12 +1,13 @@
 PYTHON := .venv/bin/python
 PIP := .venv/bin/pip
 
-.PHONY: env test zip-submission clean help
+.PHONY: env test train zip-submission clean help
 
 help:
 	@echo "Available commands:"
 	@echo "  make env            - Create Python 3.12 venv and install dependencies"
 	@echo "  make test           - Run the offline smoke test suite"
+	@echo "  make train          - Train model and export submission/weights.pt"
 	@echo "  make zip-submission - Package submission folder for Codabench upload"
 	@echo "  make clean          - Remove temporary caches"
 
@@ -16,7 +17,10 @@ env:
 	$(PIP) install -r requirements.txt
 
 test:
-	$(PYTHON) scripts/smoke_test.py
+	PYTHONPATH=. $(PYTHON) scripts/smoke_test.py
+
+train:
+	PYTHONPATH=. $(PYTHON) src/train.py
 
 zip-submission:
 	@mkdir -p dist

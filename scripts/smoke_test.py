@@ -109,8 +109,39 @@ def test_encoder():
         return False
 
 
+def test_dataset():
+    print("\n[4/5] Testing EEG Dataset & Preprocessing (src/data/dataset.py)...")
+    try:
+        from src.data.dataset import standardize_channel_wise, create_synthetic_dataset
+
+        # Test standardization
+        dummy_epoch = torch.randn(32, 256) * 15.0 + 40.0
+        norm_epoch = standardize_channel_wise(dummy_epoch)
+        assert norm_epoch.shape == dummy_epoch.shape, "Standardized shape mismatch"
+        # Each channel should have mean ≈ 0 and std ≈ 1
+        assert torch.allclose(norm_epoch.mean(dim=-1), torch.zeros(32), atol=1e-4), "Channel mean is not zero"
+        assert torch.allclose(norm_epoch.std(dim=-1), torch.ones(32), atol=1e-4), "Channel std is not one"
+
+        # Test dataset creation and indexing
+        dataset = create_synthetic_dataset(n_samples=16, n_chans=32, n_times=256)
+        assert len(dataset) == 16, f"Expected len=16, got {len(dataset)}"
+        sample = dataset[0]
+        assert "eeg" in sample and "target" in sample and "subject_id" in sample
+        assert sample["eeg"].shape == (32, 256)
+        assert sample["target"].shape == (1536,)
+
+        print("  ✅ [PASS] Dataset & Preprocessing implementation is correct!")
+        return True
+    except NotImplementedError as e:
+        print(f"  ⏳ [PENDING] {e}")
+        return False
+    except Exception as e:
+        print(f"  ❌ [FAIL] Error in dataset: {e}")
+        return False
+
+
 def test_submission():
-    print("\n[4/4] Testing Codabench Submission Contract (submission/submission.py)...")
+    print("\n[5/5] Testing Codabench Submission Contract (submission/submission.py)...")
     try:
         from submission.submission import Solver
 
@@ -142,15 +173,17 @@ def main():
         test_metrics(),
         test_loss(),
         test_encoder(),
+        test_dataset(),
         test_submission(),
     ]
 
     print("\n" + "=" * 60)
     passed = sum(results)
-    print(f"Summary: {passed}/4 components passed.")
+    print(f"Summary: {passed}/5 components passed.")
     print("=" * 60)
 
 
 if __name__ == "__main__":
     main()
+
 
