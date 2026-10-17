@@ -29,7 +29,9 @@ wheels/
 *.egg
 
 # Data, large embeddings, checkpoints
-data/
+/data/
+/cache/
+/save/
 checkpoints/
 *.h5
 *.hdf5

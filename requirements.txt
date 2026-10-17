@@ -1,6 +1,7 @@
 # Core ML & PyTorch
 torch>=2.1.0
 torchvision>=0.16.0
+torchaudio
 numpy>=1.24.0
 scipy>=1.10.0
 scikit-learn>=1.3.0
@@ -10,13 +11,19 @@ pyyaml>=6.0.0
 
 # Biosignal & EEG Processing
 mne>=1.6.0
-braindecode>=0.8.0
+braindecode>=1.8.0
 
 # NeuralBench & Benchopt (competition ecosystem)
 benchopt>=1.5.0
-neuralbench>=0.1.0
-neuralset>=0.1.0
+neuralbench>=0.3.1
+neuralset>=0.3.1
 
 # Foundation Models / DINOv2 utilities
 transformers>=4.38.0
 timm>=0.9.12
+
+# Download datasets
+moabb>=1.7.1
+
+# Notebooks
+ipykernel

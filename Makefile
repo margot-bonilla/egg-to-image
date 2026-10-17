@@ -1,7 +1,7 @@
 PYTHON := .venv/bin/python
 PIP := .venv/bin/pip
 
-.PHONY: env test train zip-submission clean help
+.PHONY: env-create env-install test train zip-submission clean help
 
 help:
 	@echo "Available commands:"
@@ -11,8 +11,10 @@ help:
 	@echo "  make zip-submission - Package submission folder for Codabench upload"
 	@echo "  make clean          - Remove temporary caches"
 
-env:
-	/opt/homebrew/bin/python3.12 -m venv .venv
+env-create:
+	python3 -m venv .venv
+
+env-install:
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
 
@@ -30,4 +32,3 @@ zip-submission:
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	rm -rf dist .pytest_cache
-

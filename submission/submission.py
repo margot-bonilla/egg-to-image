@@ -59,6 +59,8 @@ class EEGToImageEncoder(nn.Module):
             nn.Linear(flattened_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.GELU(),
+            # Keeps layer indices aligned with src/models/eeg_encoder.py state_dict keys.
+            nn.Dropout(dropout),
             nn.Linear(hidden_dim, output_dim),
         )
 
@@ -101,9 +103,8 @@ class Solver(CompetSolver):
             output_dim=meta.get("n_outputs", 1536),
         )
 
-        if weights_path.exists():
-            state_dict = torch.load(weights_path, map_location=device)
-            model.load_state_dict(state_dict)
+        state_dict = torch.load(weights_path, map_location=device)
+        model.load_state_dict(state_dict)
 
         model = model.to(device).eval()
         return model

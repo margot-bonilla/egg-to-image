@@ -74,6 +74,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Some NeuralBench datasets (e.g. PhysioNet's `Schalk2004Bci2000`) are downloaded with `wget`, which macOS does not ship with:
+```bash
+brew install wget
+```
+
 ### 2. Verify with Smoke Test
 ```bash
 python scripts/smoke_test.py
