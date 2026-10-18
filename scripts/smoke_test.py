@@ -143,18 +143,22 @@ def test_dataset():
 def test_submission():
     print("\n[5/5] Testing Codabench Submission Contract (submission/submission.py)...")
     try:
+        # On Codabench, `benchmark_utils` comes from the track folder of the competition repo.
+        sys.path.insert(0, str(REPO_ROOT / "external/2026-competition/tracks/image_decoding"))
         from submission.submission import Solver
 
-        solver = Solver()
+        solver = Solver.get_instance()
+        solver.train_loader = None  # inference-only, like the platform
+        # Warm-up input shape: 63-channel THINGS-EEG2, 1 s at 120 Hz.
         meta = {
-            "n_chans": 32,
-            "n_times": 256,
+            "n_chans": 63,
+            "n_times": 120,
             "n_outputs": 1536,
             "device": "cpu",
-            "weights_dir": str(REPO_ROOT / "submission"),
+            "submission_dir": REPO_ROOT / "submission",
         }
         model = solver.load_model(meta)
-        x = torch.randn(2, 32, 256)
+        x = torch.randn(2, 63, 120)
         preds = model.predict(x)
         assert preds.shape == (2, 1536), f"Expected (2, 1536), got {preds.shape}"
         print("  ✅ [PASS] Submission contract works!")
