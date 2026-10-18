@@ -4,10 +4,11 @@ PIP := .venv/bin/pip
 BASE_PYTHON = $(shell which python 2>/dev/null || which python3.12 || which python3)
 
 .PHONY: env env-create env-install competition-repo test train train-debug zip-submission test-submission clean help
+.PHONY: env env-create env-install neuralbench-config competition-repo test train train-debug zip-submission test-submission clean help
 
 help:
 	@echo "Available commands:"
-	@echo "  make env              - Create the venv, install dependencies, clone the competition repo"
+	@echo "  make env              - Python 3.12 venv, dependencies, competition repo, NeuralBench config"
 	@echo "  make test             - Run the offline smoke test suite"
 	@echo "  make train            - Train model and export submission/weights.pt"
 	@echo "  make train-debug      - Train on synthetic warm-up-shaped data via Benchopt (pipeline check only)"
@@ -15,10 +16,20 @@ help:
 	@echo "  make test-submission  - Zip, then run it read-only like Codabench does"
 	@echo "  make clean            - Remove temporary caches"
 
-env: env-create env-install competition-repo
+env: env-create env-install competition-repo neuralbench-config
 
+# Python 3.12 matches the Codabench worker image (python:3.12-slim); newer
+# Pythons may lack wheels for the torch / neuroai stack.
 env-create:
 	${BASE_PYTHON} -m venv .venv
+	@PY=$$(command -v python3.12 || command -v python3); \
+	$$PY -c 'import sys; sys.exit(sys.version_info[:2] != (3, 12))' || \
+		{ echo "Need Python 3.12, found $$($$PY --version 2>&1). Install it, e.g. brew install python@3.12"; exit 1; }; \
+	echo "$$PY -m venv .venv"; $$PY -m venv .venv
+
+# Writes ~/.neuralbench/config.json with this repo's data/, cache/, save/ (never overwrites).
+neuralbench-config:
+	$(PYTHON) scripts/neuralbench_config.py
 
 env-install:
 	$(PIP) install --upgrade pip
