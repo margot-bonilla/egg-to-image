@@ -32,6 +32,8 @@ wheels/
 /data/
 /cache/
 /save/
+# Official competition repo, cloned for benchmark_utils and local testing
+/external/
 checkpoints/
 *.h5
 *.hdf5
