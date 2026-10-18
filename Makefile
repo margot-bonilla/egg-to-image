@@ -20,7 +20,7 @@ env: env-create env-install competition-repo neuralbench-config
 # Python 3.12 matches the Codabench worker image (python:3.12-slim); newer
 # Pythons may lack wheels for the torch / neuroai stack.
 env-create:
-@$(BASE_PYTHON) -c 'import sys; sys.exit(sys.version_info[:2] != (3, 12))' || \
+	@$(BASE_PYTHON) -c 'import sys; sys.exit(sys.version_info[:2] != (3, 12))' || \
 		{ echo "Need Python 3.12, found $$($(BASE_PYTHON) --version 2>&1) at $(BASE_PYTHON). Install it, e.g. brew install python@3.12"; exit 1; }
 	$(BASE_PYTHON) -m venv .venv	
 # Writes ~/.neuralbench/config.json with this repo's data/, cache/, save/ (never overwrites).
