@@ -1,6 +1,8 @@
 PYTHON := .venv/bin/python
 PIP := .venv/bin/pip
 
+BASE_PYTHON = $(shell which python 2>/dev/null || which python3.12 || which python3)
+
 .PHONY: env env-create env-install competition-repo test train train-debug zip-submission test-submission clean help
 
 help:
@@ -16,7 +18,7 @@ help:
 env: env-create env-install competition-repo
 
 env-create:
-	python3 -m venv .venv
+	${BASE_PYTHON} -m venv .venv
 
 env-install:
 	$(PIP) install --upgrade pip
