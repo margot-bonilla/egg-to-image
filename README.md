@@ -39,16 +39,32 @@ Given one EEG epoch recorded while a person views a natural image, predict that 
 
 ```bash
 git clone https://github.com/margot-bonilla/egg-to-image.git && cd egg-to-image
-brew install wget          # macOS: some NeuralBench datasets download with wget
-make env                   # .venv + requirements.txt + clones the official repo into external/
+brew install wget python@3.12   # macOS: wget for some dataset downloads; Python 3.12 like the Codabench worker
+make env                   # Python 3.12 .venv + requirements + official repo in external/ + NeuralBench config
 source .venv/bin/activate
 make test                  # unit smoke tests
 make test-submission       # builds dist/submission.zip and runs it read-only, the way Codabench does
 ```
 
+- **Python 3.12 only.** The Codabench worker runs 3.12, and newer Pythons (3.13+) may lack wheels for the torch/neuroai stack. `make env` refuses anything else.
 - `requirements.txt` pins `neuralbench`/`neuralset`/`neuralfetch`/`neuraltrain==0.4.0` and `exca==0.5.29`, the same versions as the Codabench worker, so preprocessing matches the platform. Don't change these pins.
-- NeuralBench asks for data/cache/save folders on first use and stores them in `~/.neuralbench/config.json`. Point them at `data/`, `cache/` and `save/` in this repo (all gitignored).
-- Datasets are large (tens to hundreds of GB). Only download what your task needs.
+- `make env` writes `~/.neuralbench/config.json`, pointing NeuralBench at this repo's `data/`, `cache/` and `save/` (all gitignored). An existing config is never overwritten (`python scripts/neuralbench_config.py --force` to reset it).
+- Datasets are large: THINGS-EEG2 alone is ~117 GB to download and ~200 GB once extracted. Only download what your task needs.
+- THINGS-EEG2 also needs the THINGS image database, which is licence-gated: read the [LICENSE](https://osf.io/52wrx), get the password from [`password_images.txt`](https://osf.io/j6a3m), and `export NEURALFETCH_THINGS_PASSWORD=...` before downloading. Research and non-commercial use only. Never commit the password.
+
+### Training on a Mac (Apple GPU)
+
+The official pipelines only detect CUDA, so on a Mac they silently fall back to CPU. Use the wrapper instead of `neuralbench`:
+
+```bash
+python scripts/neuralbench_mps.py eeg image            # same arguments as the neuralbench CLI
+```
+
+- Runs the DINOv2 target embeddings on the Apple GPU (`scripts/mps_patch.py`): ~4× faster than CPU, with identical embeddings (cosine 1.000000 vs CPU) and **unchanged cache keys**, so the cached targets are reusable on any machine.
+- Lightning trains on `mps` automatically.
+- Runs in a single process: it regenerates `configs/neuralbench.local.json` (gitignored, don't edit it) from your `~/.neuralbench/config.json` with `CLUSTER: null`.
+- Keeps each run's best checkpoint as `save/.../best_kept.ckpt` (NeuralBench normally deletes it), ready for `submission_templates/neuralbench_eegnet_submission.py`.
+- For Benchopt training, set `COMPET_DEVICE=mps` (its datasets also only auto-detect CUDA).
 
 **Joining the team on Codabench** (needed before you can submit):
 1. Create a Codabench account and register for the competition, then fill in the [registration form](https://forms.gle/p3t2V25nuQtVXyj9A) with your Codabench email.
@@ -93,7 +109,11 @@ egg-to-image/
 │   ├── quickstart.ipynb        # NeuralBench basics
 │   └── submission_check.ipynb  # loads dist/unzipped like Codabench, checks contract, plots retrieval
 ├── configs/default.yaml
-├── scripts/smoke_test.py       # `make test`
+├── scripts/
+│   ├── smoke_test.py           # `make test`
+│   ├── neuralbench_mps.py      # neuralbench CLI on the Apple GPU, keeps best checkpoints
+│   ├── mps_patch.py            # DINOv2 embeddings on MPS (cache keys unchanged)
+│   └── neuralbench_config.py   # writes ~/.neuralbench/config.json (`make env`)
 ├── external/2026-competition/  # official repo (gitignored, created by `make env`)
 └── RESULTS.md                  # log of every upload
 ```
@@ -104,17 +124,13 @@ egg-to-image/
 
 Each workstream has a **GitHub Issue** (label `workstream`). Assign yourself before you start. One branch per workstream. We're a team of 2–3 (Margot included), so take one workstream at a time.
 
-**⚠️ Compute: Apple Silicon only (no CUDA).** PyTorch can use the Mac GPU via MPS (an M5 Max is ~5× faster than its CPU), but the official pipelines only detect CUDA and silently fall back to CPU:
-- **Benchopt training:** set `COMPET_DEVICE=mps`.
-- **neuralset's DINOv2 embedding pass:** CPU only (its `device` accepts just `cpu`/`cuda`). It's slow, but it runs **once per dataset** and is cached in `cache/`. Don't compute targets with your own script: they must match the platform's extraction exactly.
+**Compute: Apple Silicon only (no CUDA).** Train with `scripts/neuralbench_mps.py` (see [Training on a Mac](#training-on-a-mac-apple-gpu)). Never compute DINOv2 targets with your own script: they must match the platform's extraction exactly. A, E and F don't need a GPU.
 
-G makes this smooth for everyone. A, E and F don't need it.
-
-**Suggested order:** **B** first (a real warm-up score before Oct 24), with **G + A** in parallel → **C** and **D** for the final phase, where 32-channel data is what counts → **E** and **F** whenever someone is waiting on compute.
+**Suggested order:** **B** first (a real warm-up score before Oct 24), with **A** in parallel → **C** and **D** for the final phase, where 32-channel data is what counts → **E** and **F** whenever someone is waiting on compute.
 
 | | Workstream | Needs GPU | Done when |
 |---|---|---|---|
-| **G** | **Compute:** run the embedding pass and training on the Mac GPU (MPS); share cached embeddings / plan for teammates without Apple Silicon | – | B runs end to end on a Mac, documented |
+| **G** | ✅ **Compute:** embeddings and training on the Mac GPU (`scripts/neuralbench_mps.py`) | – | done |
 | **A** | **Data loader:** rebuild `src/data/dataset.py` on top of the official `Image` dataset (`external/.../benchmark_utils/nb_task.py`, `datasets/image_studies.py`) | no* | `make train` and `make test` pass on a small real study |
 | **B** | **First real warm-up model:** train on THINGS-EEG2 (`training.yml`, or `neuralbench eeg image`) and upload | yes | a real warm-up score in RESULTS.md, clearly above chance (~2%) |
 | **C** | **Final-phase data:** Alljoined-1.6M (32ch, `--dataset xu2025alljoined`), with a validation split holding out **both subjects and images** | yes | validation `top5_acc_subject_agg` reported for a baseline |

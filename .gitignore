@@ -58,3 +58,7 @@ results/
 *.swp
 *.swo
 
+
+# Local, machine-specific configs and logs
+*.local.json
+/logs/
