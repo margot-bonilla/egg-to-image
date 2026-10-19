@@ -90,6 +90,18 @@ make test-submission                       # must end with "EEGToImageBaseline: 
 ```
 Then upload `dist/submission.zip` under **My Submissions** for the active phase, and **log it in [RESULTS.md](RESULTS.md)**.
 
+### Choosing models without spending submissions
+
+`scripts/eval_local.py` scores submission folders exactly like Codabench (same data pipeline, official objective); on THINGS-EEG2 it reproduces the warm-up leaderboard to the second decimal. But the warm-up test set *is* the leaderboard data, so **select models on the held-out split**, and only check the test score at the end:
+
+```bash
+python scripts/train_solver.py <solver.py> submissions/<name> --holdout   # train without the 200 held-out concepts
+python scripts/eval_local.py submissions/<name> --split heldout           # model selection
+python scripts/eval_local.py submissions/<name>                           # final check on the warm-up test set
+```
+
+The held-out split (`configs/heldout_concepts.json`, committed, so everyone uses the same one) mirrors the test set: 200 training concepts never seen in training, one image each, for all 10 subjects. Held-out images have 4–5 repetitions per subject vs ~80 for test images, so subject-aggregated scores are lower than on test; pooled scores are comparable.
+
 Full guide: [`external/2026-competition/codabench/pages/participate.md`](https://github.com/neural-interfaces26/2026-competition/blob/main/codabench/pages/participate.md).
 
 ## 🏗️ Repo map
