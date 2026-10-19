@@ -1,6 +1,6 @@
 """Train a Codabench solver file on local data and export a ready-to-upload folder.
 
-    python scripts/train_solver.py SOLVER.py OUT_FOLDER [--holdout] [--dataset xu2025alljoined]
+    python scripts/train_solver.py SOLVER.py OUT_FOLDER [--holdout] [--seed N] [--set name=value ...]
 
 Same steps as a Benchopt ``training=True`` run (CompetSolver.run +
 _export_submission), but on the data/ and cache/ we already have instead of
@@ -10,9 +10,12 @@ Benchopt's own data path: the competition's data pipeline
 copied as OUT_FOLDER/submission.py. Score the result with scripts/eval_local.py.
 """
 import argparse
+import ast
 import importlib.util
+import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -30,6 +33,8 @@ def main():
     parser.add_argument("--dataset", default=None, help="image-task overlay, e.g. xu2025alljoined (default: THINGS-EEG2)")
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--seed", type=int, default=None, help="sets Solver.seed, if the solver has one")
+    parser.add_argument("--set", nargs="*", default=[], metavar="NAME=VALUE",
+                        help="override Solver class attributes, e.g. --set dedup=True n_epochs=30")
     parser.add_argument("--num-workers", type=int, default=8, help="data-loading processes (0 = in-process)")
     parser.add_argument("--holdout", action="store_true",
                         help="train without the 200 held-out concepts (configs/heldout_concepts.json), "
@@ -71,6 +76,16 @@ def main():
     solver.device = device
     if args.seed is not None:
         solver.seed = args.seed
+    overrides = {}
+    for item in args.set:
+        name, _, value = item.partition("=")
+        if not hasattr(solver, name):
+            raise SystemExit(f"{type(solver).__name__} has no attribute {name!r}")
+        try:
+            overrides[name] = ast.literal_eval(value)
+        except (ValueError, SyntaxError):
+            overrides[name] = value
+        setattr(solver, name, overrides[name])
 
     args.out.mkdir(parents=True, exist_ok=True)
     model = solver.load_model({**meta, "device": device, "submission_dir": args.out.resolve()})
@@ -80,6 +95,17 @@ def main():
 
     shutil.copyfile(args.solver, args.out / "submission.py")
     solver.save_model(model, args.out.resolve())
+    # Audit record (left out of the ZIP by `make zip-submission`, like other run_config* files).
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=REPO).stdout.strip()
+    dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
+                                capture_output=True, text=True, cwd=REPO).stdout.strip())
+    (args.out / "run_config.json").write_text(json.dumps({
+        "command": "python " + " ".join(sys.argv),
+        "commit": commit + ("+uncommitted-changes" if dirty else ""),
+        "solver": str(args.solver), "holdout": args.holdout, "dataset": args.dataset,
+        "seed": getattr(solver, "seed", None), "overrides": overrides,
+        "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
+    }, indent=2))
     print(f"Submission ready in {args.out}: {sorted(p.name for p in args.out.iterdir())}")
 
 
