@@ -1,6 +1,8 @@
 PYTHON := .venv/bin/python
 PIP := .venv/bin/pip
 
+BASE_PYTHON := $(shell for p in python3.12 python3 python; do command -v $$p >/dev/null && $$p -c 'import sys; sys.exit(sys.version_info[:2] != (3, 12))' 2>/dev/null && command -v $$p && break; done)
+
 .PHONY: env env-create env-install neuralbench-config competition-repo test train train-debug zip-submission test-submission clean help
 
 help:
@@ -18,11 +20,8 @@ env: env-create env-install competition-repo neuralbench-config
 # Python 3.12 matches the Codabench worker image (python:3.12-slim); newer
 # Pythons may lack wheels for the torch / neuroai stack.
 env-create:
-	@PY=$$(command -v python3.12 || command -v python3); \
-	$$PY -c 'import sys; sys.exit(sys.version_info[:2] != (3, 12))' || \
-		{ echo "Need Python 3.12, found $$($$PY --version 2>&1). Install it, e.g. brew install python@3.12"; exit 1; }; \
-	echo "$$PY -m venv .venv"; $$PY -m venv .venv
-
+	@test -n "$(BASE_PYTHON)" || { echo "Need Python 3.12; found: $$(for p in python3.12 python3 python; do command -v $$p >/dev/null && echo "$$p=$$($$p --version 2>&1)"; done | tr '\n' ' '). Install it, e.g. brew install python@3.12"; exit 1; }
+	$(BASE_PYTHON) -m venv .venv
 # Writes ~/.neuralbench/config.json with this repo's data/, cache/, save/ (never overwrites).
 neuralbench-config:
 	$(PYTHON) scripts/neuralbench_config.py
