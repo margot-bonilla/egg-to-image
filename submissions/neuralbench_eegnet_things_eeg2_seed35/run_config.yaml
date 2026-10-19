@@ -1,0 +1,347 @@
+infra:
+  folder: /Users/margotbonilla/Projects/eeg/egg-to-image/save
+  cluster: null
+  logs: '{folder}/logs/{user}/%j'
+  job_name: neuralbench
+  timeout_min: 1440
+  nodes: 1
+  tasks_per_node: 1
+  cpus_per_task: 18
+  gpus_per_node: 1
+  mem_gb: 64.0
+  max_pickle_size_gb: null
+  slurm_constraint: ''
+  slurm_partition: ''
+  slurm_account: null
+  slurm_qos: null
+  slurm_use_srun: false
+  slurm_additional_parameters: null
+  slurm_setup: null
+  conda_env: null
+  workdir: null
+  permissions: 511
+  version: '1'
+  mode: cached
+  keep_in_ram: false
+task_name: image
+data:
+  study:
+    name: Chain
+    infra: null
+    steps:
+      source:
+        name: Gifford2022Large
+        infra:
+          backend: Cached
+          folder: /Users/margotbonilla/Projects/eeg/egg-to-image/cache
+          mode: cached
+          keep_in_ram: false
+          capture_logs: false
+        path: /Users/margotbonilla/Projects/eeg/egg-to-image/data/Gifford2022Large
+        timelines:
+          name: TimelineLoader
+          infra:
+            backend: ProcessPool
+            folder: /Users/margotbonilla/Projects/eeg/egg-to-image/cache
+            mode: cached
+            keep_in_ram: true
+            max_jobs: 128
+        version: ''
+        query: null
+      split:
+        name: PredefinedSplit
+        infra: null
+        event_type: null
+        test_split_query: null
+        col_name: split
+        valid_split_by: timeline
+        valid_split_ratio: 0.2
+        valid_random_state: 33
+        test_random_state: null
+  neuro:
+    name: EegExtractor
+    event_types: Eeg
+    aggregation: single
+    allow_missing: false
+    frequency: 120.0
+    offset: 0.0
+    baseline:
+    - 0.0
+    - 0.2
+    picks:
+    - eeg
+    apply_proj: false
+    filter:
+    - 0.1
+    - 75.0
+    on_filter_too_long: raise
+    apply_hilbert: false
+    notch_filter:
+    - 50.0
+    - 60.0
+    drop_bads: false
+    mne_cpus: -1
+    infra:
+      folder: /Users/margotbonilla/Projects/eeg/egg-to-image/cache
+      cluster: null
+      logs: '{folder}/logs/{user}/%j'
+      job_name: null
+      timeout_min: 180
+      nodes: 1
+      tasks_per_node: 1
+      cpus_per_task: 10
+      gpus_per_node: 1
+      mem_gb: null
+      max_pickle_size_gb: null
+      slurm_constraint: null
+      slurm_partition: ''
+      slurm_account: null
+      slurm_qos: null
+      slurm_use_srun: false
+      slurm_additional_parameters: null
+      slurm_setup: null
+      conda_env: null
+      workdir: null
+      permissions: 511
+      version: '1'
+      keep_in_ram: true
+      max_jobs: 128
+      min_samples_per_job: 8
+      forbid_single_item_computation: false
+      mode: cached
+    scaler: RobustScaler
+    store_dtype: float32
+    scale_factor: null
+    clamp: 20.0
+    fill_non_finite: null
+    bipolar_ref: null
+    channel_order: unique
+    allow_maxshield: false
+  target:
+    name: HuggingFaceImage
+    model_name: facebook/dinov2-giant
+    hf_config:
+      model_cls_name: AutoModel
+      processor_cls_name: AutoProcessor
+      model_kwargs: null
+      processor_kwargs:
+        do_rescale: false
+    device: cpu
+    dtype: null
+    pretrained: true
+    layers: 0.6667
+    cache_n_layers: null
+    layer_aggregation: mean
+    token_aggregation: mean
+    event_types: Image
+    aggregation: trigger
+    allow_missing: false
+    frequency: 0.0
+    infra:
+      folder: /Users/margotbonilla/Projects/eeg/egg-to-image/cache
+      cluster: null
+      logs: '{folder}/logs/{user}/%j'
+      job_name: null
+      timeout_min: 180
+      nodes: 1
+      tasks_per_node: 1
+      cpus_per_task: 10
+      gpus_per_node: 1
+      mem_gb: null
+      max_pickle_size_gb: null
+      slurm_constraint: null
+      slurm_partition: ''
+      slurm_account: null
+      slurm_qos: null
+      slurm_use_srun: false
+      slurm_additional_parameters: null
+      slurm_setup: null
+      conda_env: null
+      workdir: null
+      permissions: 511
+      version: v6
+      keep_in_ram: false
+      max_jobs: 128
+      min_samples_per_job: 64
+      forbid_single_item_computation: false
+      mode: cached
+    batch_size: 32
+    imsize: 518
+  channel_positions:
+    name: ChannelPositions
+    event_types: MneRaw
+    aggregation: single
+    allow_missing: false
+    frequency: 0.0
+    neuro: null
+    n_spatial_dims: 3
+    layout_or_montage_name: null
+    include_ref_eeg: false
+    normalize: true
+    factor: 1.0
+    infra:
+      folder: null
+      cluster: null
+      logs: '{folder}/logs/{user}/%j'
+      job_name: null
+      timeout_min: null
+      nodes: 1
+      tasks_per_node: 1
+      cpus_per_task: null
+      gpus_per_node: null
+      mem_gb: null
+      max_pickle_size_gb: null
+      slurm_constraint: null
+      slurm_partition: null
+      slurm_account: null
+      slurm_qos: null
+      slurm_use_srun: false
+      slurm_additional_parameters: null
+      slurm_setup: null
+      conda_env: null
+      workdir: null
+      permissions: 511
+      version: '0'
+      keep_in_ram: true
+      max_jobs: 128
+      min_samples_per_job: 1
+      forbid_single_item_computation: false
+      mode: cached
+  trigger_event_type: Image
+  start: -0.2
+  duration: 1.0
+  stride: null
+  stride_drop_incomplete: true
+  drop_incomplete: false
+  min_finite_target_fraction: null
+  sampler: null
+  batch_size: 64
+  val_batch_size: null
+  test_batch_size: null
+  train_shuffle: true
+  val_shuffle: false
+  test_shuffle: false
+  num_workers: 18
+  drop_last: false
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: null
+  seed: 33
+  stream_by: null
+  summary_columns:
+  - category
+  - filepath
+target_scaler: null
+compute_class_weights: false
+brain_model_config:
+  name: EEGNet
+  kwargs: {}
+  from_pretrained_name: null
+brain_model_output_size: 1536
+pretrained_weights_fname: null
+downstream_model_wrapper: null
+trainer_config:
+  n_epochs: 40
+  enable_progress_bar: true
+  log_every_n_steps: 20
+  fast_dev_run: false
+  gradient_clip_val: 1.0
+  limit_train_batches: null
+  limit_val_batches: null
+  num_sanity_val_steps: 0
+  accumulate_grad_batches: 1
+  strategy: auto
+  precision: 32-true
+  accelerator: auto
+  devices: 1
+  num_nodes: 1
+  patience: 5
+  monitor: val/batch_inv_norm_rank_mean
+  mode: max
+max_neuro_hours_per_epoch: null
+loss:
+  name: ClipLoss
+  norm_kind: y
+  temperature: false
+  symmetric: false
+  reduction: mean
+lightning_optimizer_config:
+  name: LightningOptimizer
+  optimizer:
+    name: AdamW
+    lr: 0.0001
+    kwargs:
+      weight_decay: 0.05
+  scheduler:
+    name: OneCycleLR
+    kwargs:
+      max_lr: 0.0001
+      pct_start: 0.1
+      anneal_strategy: cos
+  interval: step
+augmentation: null
+eval_only: false
+metrics:
+- name: InverseNormalizedRank
+  log_name: batch_inv_norm_rank_median
+  reduction: median
+  torchmetrics_kwargs: null
+- name: InverseNormalizedRank
+  log_name: batch_inv_norm_rank_mean
+  reduction: mean
+  torchmetrics_kwargs: null
+- name: TopkAcc
+  log_name: batch_top5_acc
+  topk: 5
+- name: OnlinePearsonCorr
+  log_name: batch_pearson_corr
+  dim: 0
+  reduction: mean
+  torchmetrics_kwargs: null
+validate_before_training: true
+test_full_metrics: []
+test_full_retrieval_metrics:
+- name: InverseNormalizedRank
+  log_name: inv_norm_rank_median
+  reduction: median
+  torchmetrics_kwargs: null
+- name: InverseNormalizedRank
+  log_name: inv_norm_rank_median_instance-agg
+  reduction: median
+  torchmetrics_kwargs: null
+- name: InverseNormalizedRank
+  log_name: inv_norm_rank_median_subject-agg
+  reduction: median
+  torchmetrics_kwargs: null
+- name: InverseNormalizedRank
+  log_name: inv_norm_rank_mean
+  reduction: mean
+  torchmetrics_kwargs: null
+- name: InverseNormalizedRank
+  log_name: inv_norm_rank_mean_instance-agg
+  reduction: mean
+  torchmetrics_kwargs: null
+- name: InverseNormalizedRank
+  log_name: inv_norm_rank_mean_subject-agg
+  reduction: mean
+  torchmetrics_kwargs: null
+- name: TopkAcc
+  log_name: top5_acc
+  topk: 5
+- name: TopkAcc
+  log_name: top5_acc_instance-agg
+  topk: 5
+- name: TopkAcc
+  log_name: top5_acc_subject-agg
+  topk: 5
+- name: TopkAcc
+  log_name: top1_acc_subject-agg
+  topk: 1
+save_test_predictions: false
+csv_config: null
+wandb_config: null
+seed: 35
+delete_checkpoints_on_exit: true
+dummy: {}
+brain_model_name: EEGNet
+space_name: null

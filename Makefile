@@ -55,11 +55,15 @@ train-debug: competition-repo
 		-d "$(WARMUP_SIM_TRAIN)" -s "$(CURDIR)/submission/submission.py" --no-plot --no-cache
 	cp $(COMPET_REPO)/tracks/image_decoding/outputs/EEGToImageBaseline/weights.pt submission/weights.pt
 
+# Folder holding submission.py + its weights/artifacts, e.g. make test-submission SUBMISSION=submissions/<name>
+# Every file in it goes into the ZIP except run_config*.yaml (kept for the audit) and dotfiles.
+SUBMISSION ?= submission
+
 zip-submission:
 	@mkdir -p dist
 	rm -f dist/submission.zip
-	zip -j dist/submission.zip submission/submission.py submission/weights.pt
-	@echo "Created dist/submission.zip ready for Codabench upload!"
+	zip -j dist/submission.zip $$(find $(SUBMISSION) -maxdepth 1 -type f ! -name 'run_config*' ! -name '.*')
+	@echo "Created dist/submission.zip from $(SUBMISSION)/, ready for Codabench upload!"
 
 # Mimic Codabench: unzip into a read-only folder and run inference-only.
 test-submission: competition-repo zip-submission

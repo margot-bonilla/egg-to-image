@@ -12,6 +12,7 @@ To submit, ZIP ``submission.py`` and ``weights.pt`` at the ROOT of the archive
 
 Only ``torch`` is imported: nothing is installed on the evaluation worker.
 """
+import math
 from pathlib import Path
 
 import torch
@@ -82,18 +83,62 @@ class EEGToImageEncoder(nn.Module):
         return self.forward(x.float())
 
 
-def info_nce_loss(pred: torch.Tensor, target: torch.Tensor, temperature: float = 0.07) -> torch.Tensor:
-    """Asymmetric CLIP / InfoNCE loss: classify each window among the batch targets."""
-    logits = pred @ F.normalize(target, dim=-1).T / temperature
-    return F.cross_entropy(logits, torch.arange(len(pred), device=pred.device))
+def clip_loss(pred, target, logit_scale, dedup=False, symmetric=False):
+    """InfoNCE with the options used in CLIP-style brain decoding.
+
+    pred: (B, D) L2-normalized predictions; logit_scale = 1 / temperature.
+    dedup: windows of the same image share a target, so another copy of the right image
+        in the batch would count as a wrong answer; mask those false negatives out.
+    symmetric: also classify each target among the batch predictions (image -> EEG).
+    """
+    target = F.normalize(target, dim=-1)
+    logits = logit_scale * pred @ target.T
+    if dedup:
+        same_image = (target @ target.T) > 0.9999
+        same_image.fill_diagonal_(False)
+        logits = logits.masked_fill(same_image, float("-inf"))
+    labels = torch.arange(len(pred), device=pred.device)
+    loss = F.cross_entropy(logits, labels)
+    if symmetric:
+        loss = (loss + F.cross_entropy(logits.T, labels)) / 2
+    return loss
+
+
+def augment(x, max_shift=0, channel_dropout=0.0):
+    """Training-time augmentation of (B, C, T) windows: random circular time shift, channel dropout."""
+    if max_shift:
+        shifts = torch.randint(-max_shift, max_shift + 1, (len(x),))
+        x = torch.stack([torch.roll(xi, int(s), dims=-1) for xi, s in zip(x, shifts)])
+    if channel_dropout:
+        x = x * (torch.rand(x.shape[0], x.shape[1], 1, device=x.device) > channel_dropout)
+    return x
+
+
+class EmbeddingEnsemble:
+    """Mean of the members' L2-normalized embeddings (one member per shipped weights_*.pt)."""
+
+    def __init__(self, models):
+        self.models = models
+
+    @torch.inference_mode()
+    def predict(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.stack([m.predict(x) for m in self.models]).mean(0)
 
 
 class Solver(CompetSolver):
     name = "EEGToImageBaseline"
 
-    # Local-training hyperparameters (only used by ``fit``).
+    # Local-training hyperparameters (only used by ``fit``). The defaults reproduce the
+    # 0.54 run; scripts/train_solver.py --set name=value overrides them per experiment.
     n_epochs = 20
     lr = 1e-3
+    seed = 0
+    temperature = 0.07
+    learn_temperature = False
+    dedup = False
+    symmetric = False
+    max_shift = 0  # samples (120 Hz)
+    channel_dropout = 0.0
 
     def load_model(self, meta: dict):
         """
@@ -102,32 +147,50 @@ class Solver(CompetSolver):
           - n_outputs: embedding dimension D (1536 for DINOv2-giant)
           - device: where the input batches live
           - submission_dir: read-only folder holding the files extracted from the ZIP
+
+        Ships either one ``weights.pt`` or several ``weights_*.pt`` (an ensemble).
         """
         device = meta["device"]
-        model = EEGToImageEncoder(
-            n_chans=meta["n_chans"],
-            n_times=meta["n_times"],
-            output_dim=meta["n_outputs"],
-        )
+
+        def build():
+            return EEGToImageEncoder(
+                n_chans=meta["n_chans"],
+                n_times=meta["n_times"],
+                output_dim=meta["n_outputs"],
+            ).to(device)
 
         # A local training run (train_loader set) starts from scratch; every
         # inference-only run, including Codabench's, must load the shipped weights.
-        if getattr(self, "train_loader", None) is None:
-            weights_path = Path(meta["submission_dir"]) / "weights.pt"
-            state_dict = torch.load(weights_path, map_location=device, weights_only=True)
-            model.load_state_dict(state_dict)
+        if getattr(self, "train_loader", None) is not None:
+            torch.manual_seed(self.seed)  # reproducible weight init
+            return build().eval()
 
-        return model.to(device).eval()
+        submission_dir = Path(meta["submission_dir"])
+        paths = sorted(submission_dir.glob("weights_*.pt")) or [submission_dir / "weights.pt"]
+        models = []
+        for path in paths:
+            model = build()
+            model.load_state_dict(torch.load(path, map_location=device, weights_only=True))
+            models.append(model.eval())
+        return models[0] if len(models) == 1 else EmbeddingEnsemble(models)
 
     def fit(self, model, train_loader):
-        optimizer = torch.optim.AdamW(model.parameters(), lr=self.lr, weight_decay=1e-4)
+        torch.manual_seed(self.seed)  # reproducible shuffling and dropout
+        device = next(model.parameters()).device
+        # Training-only parameter (not saved: inference doesn't use the temperature).
+        log_scale = torch.nn.Parameter(torch.tensor(math.log(1 / self.temperature), device=device),
+                                       requires_grad=self.learn_temperature)
+        params = list(model.parameters()) + ([log_scale] if self.learn_temperature else [])
+        optimizer = torch.optim.AdamW(params, lr=self.lr, weight_decay=1e-4)
         model.train()
         for _ in range(self.n_epochs):
             for X, y, _info in train_loader:
                 if len(X) < 2:  # BatchNorm1d needs more than one sample per batch
                     continue
+                X = augment(X.float(), self.max_shift, self.channel_dropout)
                 optimizer.zero_grad()
-                loss = info_nce_loss(model(X.float()), y.float())
+                scale = log_scale.clamp(max=math.log(100)).exp()  # temperature >= 0.01, as in CLIP
+                loss = clip_loss(model(X), y.float(), scale, self.dedup, self.symmetric)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
