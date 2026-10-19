@@ -1,6 +1,6 @@
 """`neuralbench` CLI on a Mac: same arguments, DINOv2 targets and training on the Apple GPU.
 
-    python scripts/neuralbench_mps.py eeg image -m eegnet
+    python scripts/neuralbench_mps.py eeg image -m eegnet [--seeds 33,34]
 
 - Applies scripts/mps_patch.py (HuggingFace extractors on ``mps``; cache keys unchanged).
 - Runs everything in this process: writes configs/neuralbench.local.json, a copy of
@@ -52,6 +52,21 @@ def keep_best_checkpoints() -> None:
     Experiment._cleanup = cleanup_keeping_best
 
 
+def override_seed_grid(seeds: list[int]) -> None:
+    """Replace NeuralBench's default seed grid (33, 34, 35) with ``seeds``."""
+    from neuralbench import experiment_config
+
+    load = experiment_config.load_yaml_config
+
+    def load_with_seeds(path, *args, **kwargs):
+        config = load(path, *args, **kwargs)
+        if Path(path) == experiment_config.DEFAULTS_DIR / "grid.yaml":
+            config["seed"] = seeds
+        return config
+
+    experiment_config.load_yaml_config = load_with_seeds
+
+
 if __name__ == "__main__":
     write_local_config()
     os.environ["NEURALBENCH_CONFIG"] = str(LOCAL_CONFIG)
@@ -62,6 +77,11 @@ if __name__ == "__main__":
 
     mps_patch.apply()
     keep_best_checkpoints()
+    if "--seeds" in sys.argv:
+        i = sys.argv.index("--seeds")
+        seeds = [int(s) for s in sys.argv[i + 1].split(",")]
+        del sys.argv[i:i + 2]
+        override_seed_grid(seeds)
 
     from neuralbench import run_benchmark_cli
 
