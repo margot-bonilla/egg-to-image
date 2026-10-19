@@ -39,6 +39,9 @@ def main():
     parser.add_argument("--holdout", action="store_true",
                         help="train without the 200 held-out concepts (configs/heldout_concepts.json), "
                              "so the model can be selected with eval_local.py --split heldout")
+    parser.add_argument("--use-val", action="store_true",
+                        help="also train on NeuralBench's val split (+25%% data on THINGS-EEG2; with --holdout, "
+                             "minus the held-out concepts)")
     args = parser.parse_args()
     if args.out.exists() and any(args.out.iterdir()):
         raise SystemExit(f"{args.out} is not empty: pick a new folder (load_model would reuse its weights)")
@@ -58,11 +61,16 @@ def main():
             "target.infra.permissions": None,
         },
     )
+    sys.path.insert(0, str(REPO))
     if args.holdout:
-        sys.path.insert(0, str(REPO))
         from src.data.heldout import heldout_split
 
-        loaders["train"] = heldout_split(loaders, device, args.batch_size, args.num_workers)["train"]
+        loaders["train"] = heldout_split(loaders, device, args.batch_size, args.num_workers,
+                                         include_val=args.use_val)["train"]
+    elif args.use_val:
+        from src.data.heldout import train_plus_val
+
+        loaders["train"] = train_plus_val(loaders, device, args.batch_size, args.num_workers)
     meta["n_outputs"] = int(meta.pop("target_shape")[-1])
     meta.pop("raw_target_shape", None)
     print(f"Train split: {len(loaders['train'].dataset)} windows, "
@@ -102,7 +110,7 @@ def main():
     (args.out / "run_config.json").write_text(json.dumps({
         "command": "python " + " ".join(sys.argv),
         "commit": commit + ("+uncommitted-changes" if dirty else ""),
-        "solver": str(args.solver), "holdout": args.holdout, "dataset": args.dataset,
+        "solver": str(args.solver), "holdout": args.holdout, "use_val": args.use_val, "dataset": args.dataset,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
     }, indent=2))
