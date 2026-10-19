@@ -25,5 +25,20 @@ def _load_model_on_mps(self) -> torch.nn.Module:
     return model
 
 
+_getstate = hf.HuggingFaceMixin.__getstate__
+
+
+def _getstate_without_model(self) -> dict:
+    # Don't ship the loaded model when the extractor is pickled (e.g. into DataLoader
+    # workers): MPS tensors can't be shared across processes ("_share_filename_: only
+    # available on CPU"), and workers read cached embeddings anyway. Reloads lazily.
+    state = _getstate(self)
+    private = state.get("__pydantic_private__") or {}
+    if private.get("_model") is not None:
+        state["__pydantic_private__"] = {**private, "_model": None}
+    return state
+
+
 def apply() -> None:
     hf.HuggingFaceMixin.load_model = _load_model_on_mps
+    hf.HuggingFaceMixin.__getstate__ = _getstate_without_model
