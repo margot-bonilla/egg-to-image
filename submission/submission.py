@@ -88,12 +88,24 @@ def info_nce_loss(pred: torch.Tensor, target: torch.Tensor, temperature: float =
     return F.cross_entropy(logits, torch.arange(len(pred), device=pred.device))
 
 
+class EmbeddingEnsemble:
+    """Mean of the members' L2-normalized embeddings (one member per shipped weights_*.pt)."""
+
+    def __init__(self, models):
+        self.models = models
+
+    @torch.inference_mode()
+    def predict(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.stack([m.predict(x) for m in self.models]).mean(0)
+
+
 class Solver(CompetSolver):
     name = "EEGToImageBaseline"
 
     # Local-training hyperparameters (only used by ``fit``).
     n_epochs = 20
     lr = 1e-3
+    seed = 0
 
     def load_model(self, meta: dict):
         """
@@ -102,24 +114,35 @@ class Solver(CompetSolver):
           - n_outputs: embedding dimension D (1536 for DINOv2-giant)
           - device: where the input batches live
           - submission_dir: read-only folder holding the files extracted from the ZIP
+
+        Ships either one ``weights.pt`` or several ``weights_*.pt`` (an ensemble).
         """
         device = meta["device"]
-        model = EEGToImageEncoder(
-            n_chans=meta["n_chans"],
-            n_times=meta["n_times"],
-            output_dim=meta["n_outputs"],
-        )
+
+        def build():
+            return EEGToImageEncoder(
+                n_chans=meta["n_chans"],
+                n_times=meta["n_times"],
+                output_dim=meta["n_outputs"],
+            ).to(device)
 
         # A local training run (train_loader set) starts from scratch; every
         # inference-only run, including Codabench's, must load the shipped weights.
-        if getattr(self, "train_loader", None) is None:
-            weights_path = Path(meta["submission_dir"]) / "weights.pt"
-            state_dict = torch.load(weights_path, map_location=device, weights_only=True)
-            model.load_state_dict(state_dict)
+        if getattr(self, "train_loader", None) is not None:
+            torch.manual_seed(self.seed)  # reproducible weight init
+            return build().eval()
 
-        return model.to(device).eval()
+        submission_dir = Path(meta["submission_dir"])
+        paths = sorted(submission_dir.glob("weights_*.pt")) or [submission_dir / "weights.pt"]
+        models = []
+        for path in paths:
+            model = build()
+            model.load_state_dict(torch.load(path, map_location=device, weights_only=True))
+            models.append(model.eval())
+        return models[0] if len(models) == 1 else EmbeddingEnsemble(models)
 
     def fit(self, model, train_loader):
+        torch.manual_seed(self.seed)  # reproducible shuffling and dropout
         optimizer = torch.optim.AdamW(model.parameters(), lr=self.lr, weight_decay=1e-4)
         model.train()
         for _ in range(self.n_epochs):
