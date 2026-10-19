@@ -29,6 +29,7 @@ def main():
     parser.add_argument("out", type=Path, help="submission folder to create")
     parser.add_argument("--dataset", default=None, help="image-task overlay, e.g. xu2025alljoined (default: THINGS-EEG2)")
     parser.add_argument("--batch-size", type=int, default=256)
+    parser.add_argument("--seed", type=int, default=None, help="sets Solver.seed, if the solver has one")
     parser.add_argument("--num-workers", type=int, default=8, help="data-loading processes (0 = in-process)")
     parser.add_argument("--holdout", action="store_true",
                         help="train without the 200 held-out concepts (configs/heldout_concepts.json), "
@@ -68,6 +69,8 @@ def main():
     solver = module.Solver.get_instance()
     solver.train_loader = loaders["train"]  # a training run, like objective training=True
     solver.device = device
+    if args.seed is not None:
+        solver.seed = args.seed
 
     args.out.mkdir(parents=True, exist_ok=True)
     model = solver.load_model({**meta, "device": device, "submission_dir": args.out.resolve()})
