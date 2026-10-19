@@ -1,6 +1,6 @@
 """Train a Codabench solver file on local data and export a ready-to-upload folder.
 
-    python scripts/train_solver.py SOLVER.py OUT_FOLDER [--dataset xu2025alljoined]
+    python scripts/train_solver.py SOLVER.py OUT_FOLDER [--holdout] [--dataset xu2025alljoined]
 
 Same steps as a Benchopt ``training=True`` run (CompetSolver.run +
 _export_submission), but on the data/ and cache/ we already have instead of
@@ -29,6 +29,10 @@ def main():
     parser.add_argument("out", type=Path, help="submission folder to create")
     parser.add_argument("--dataset", default=None, help="image-task overlay, e.g. xu2025alljoined (default: THINGS-EEG2)")
     parser.add_argument("--batch-size", type=int, default=256)
+    parser.add_argument("--num-workers", type=int, default=8, help="data-loading processes (0 = in-process)")
+    parser.add_argument("--holdout", action="store_true",
+                        help="train without the 200 held-out concepts (configs/heldout_concepts.json), "
+                             "so the model can be selected with eval_local.py --split heldout")
     args = parser.parse_args()
     if args.out.exists() and any(args.out.iterdir()):
         raise SystemExit(f"{args.out} is not empty: pick a new folder (load_model would reuse its weights)")
@@ -40,7 +44,7 @@ def main():
     cache = str(REPO / "cache")
     loaders, meta = load_task(
         "eeg", "image", data_dir=REPO / "data", dataset=args.dataset, device=device,
-        batch_size=args.batch_size, overrides={
+        batch_size=args.batch_size, num_workers=args.num_workers, overrides={
             "study.source.infra.folder": cache,
             "neuro.infra.folder": cache,
             "target.infra.folder": cache,
@@ -48,6 +52,11 @@ def main():
             "target.infra.permissions": None,
         },
     )
+    if args.holdout:
+        sys.path.insert(0, str(REPO))
+        from src.data.heldout import heldout_split
+
+        loaders["train"] = heldout_split(loaders, device, args.batch_size, args.num_workers)["train"]
     meta["n_outputs"] = int(meta.pop("target_shape")[-1])
     meta.pop("raw_target_shape", None)
     print(f"Train split: {len(loaders['train'].dataset)} windows, "

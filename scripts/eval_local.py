@@ -1,6 +1,6 @@
 """Score submission folders locally, exactly like Codabench, on the real test split.
 
-    python scripts/eval_local.py submissions/a [submissions/b ...] [--dataset xu2025alljoined]
+    python scripts/eval_local.py submissions/a [submissions/b ...] [--split heldout] [--dataset xu2025alljoined]
 
 Loads each folder's submission.py + weights the way the platform does
 (``Solver.load_model(meta)``), feeds it the competition's own data pipeline
@@ -47,9 +47,13 @@ def main():
     parser.add_argument("submissions", nargs="+", type=Path, help="folders with submission.py + weights")
     parser.add_argument("--dataset", default=None, help="image-task overlay, e.g. xu2025alljoined (default: THINGS-EEG2)")
     parser.add_argument("--batch-size", type=int, default=256)
+    parser.add_argument("--split", default="test", choices=["test", "heldout"],
+                        help="test = the warm-up evaluation set; heldout = 200 held-out training "
+                             "concepts (configs/heldout_concepts.json), for model selection")
     args = parser.parse_args()
 
     sys.path.insert(0, str(TRACK))
+    sys.path.insert(0, str(REPO))
     from benchmark_utils.nb_task import load_task
 
     device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
@@ -68,7 +72,13 @@ def main():
     meta.pop("raw_target_shape", None)
 
     objective = load_module("objective", TRACK / "objective.py").Objective.get_instance()
-    objective.set_data(train_loader=None, test_loader=loaders["test"], n_outputs=n_outputs, **meta)
+    if args.split == "heldout":
+        from src.data.heldout import heldout_split
+
+        eval_loader = heldout_split(loaders, device, args.batch_size)["heldout"]
+    else:
+        eval_loader = loaders["test"]
+    objective.set_data(train_loader=None, test_loader=eval_loader, n_outputs=n_outputs, **meta)
 
     models = {}
     for i, folder in enumerate(args.submissions):
@@ -81,7 +91,7 @@ def main():
     if len(models) > 1:
         models[f"ensemble of {len(models)}"] = Ensemble(list(models.values()))
 
-    print(f"\nTest split: {len(loaders['test'].dataset)} windows, "
+    print(f"\n{args.split} split: {len(eval_loader.dataset)} windows, "
           f"{meta['n_chans']} channels x {meta['n_times']} samples, device={device}\n")
     width = max(len(name) for name in models) + 2
     print(f"{'model':<{width}}" + "".join(f"{m:>22}" for m in METRICS))
