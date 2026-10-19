@@ -46,7 +46,7 @@ checkpoints/
 *.pt
 *.pth
 !submission/weights.pt
-!submissions/*/weights.pt
+!submissions/*/weights*.pt
 
 # Benchopt & competition cache
 .benchopt/
