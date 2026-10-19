@@ -1,0 +1,13 @@
+{
+  "command": "python scripts/train_solver.py submission/submission.py submissions/e6_r2_learntemp --holdout --seed 1 --set learn_temperature=True",
+  "commit": "e8154436b18f2c4b2f410033b89f6bfce474bbdd",
+  "solver": "submission/submission.py",
+  "holdout": true,
+  "dataset": null,
+  "seed": 1,
+  "overrides": {
+    "learn_temperature": true
+  },
+  "train_windows": 470140,
+  "fit_minutes": 77.8
+}
