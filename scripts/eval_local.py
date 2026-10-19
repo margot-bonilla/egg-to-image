@@ -93,4 +93,5 @@ def main():
 
 if __name__ == "__main__":
     os.environ.setdefault("HF_HOME", str(REPO / "cache" / "huggingface"))
+    os.environ.setdefault("REVE_POSITIONS_PATH", str(REPO / "cache" / "mne_data"))
     main()
