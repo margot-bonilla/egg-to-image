@@ -179,6 +179,7 @@ class Solver(CompetSolver):
     seed = 0
     temperature = 0.07
     learn_temperature = False
+    min_temperature = 0.01  # floor of the learned temperature (CLIP's); R6 sat on it from epoch ~15
     dedup = False
     symmetric = False
     max_shift = 0  # samples (120 Hz)
@@ -234,6 +235,7 @@ class Solver(CompetSolver):
         # Training-only parameter (not saved: inference doesn't use the temperature).
         log_scale = torch.nn.Parameter(torch.tensor(math.log(1 / self.temperature), device=device),
                                        requires_grad=self.learn_temperature)
+        max_log_scale = math.log(1 / self.min_temperature)
         params = list(model.parameters()) + ([log_scale] if self.learn_temperature else [])
         optimizer = torch.optim.AdamW(params, lr=self.lr, weight_decay=self.weight_decay)
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, self._lr_factor(len(train_loader)))
@@ -247,7 +249,7 @@ class Solver(CompetSolver):
                     continue
                 X = augment(X.float(), self.max_shift, self.channel_dropout)
                 optimizer.zero_grad()
-                scale = log_scale.clamp(max=math.log(100)).exp()  # temperature >= 0.01, as in CLIP
+                scale = log_scale.clamp(max=max_log_scale).exp()  # temperature >= min_temperature
                 loss = clip_loss(model(X), y.float(), scale, self.dedup, self.symmetric)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -255,7 +257,7 @@ class Solver(CompetSolver):
                 scheduler.step()
                 total, n_batches = total + loss.item(), n_batches + 1
             model.eval()
-            temperature = float(1 / log_scale.clamp(max=math.log(100)).exp())
+            temperature = float(1 / log_scale.clamp(max=max_log_scale).exp())
             record = {"epoch": epoch + 1, "train_loss": total / max(n_batches, 1), "temperature": temperature,
                       "lr": optimizer.param_groups[0]["lr"]}
             if self.epoch_callback is not None:
