@@ -1,0 +1,922 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+\documentclass[
+  11pt,
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{longtable,booktabs,array}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\usepackage{fontspec}
+% Symbols missing from the text fonts (arrows, maths signs) come from these fallbacks.
+\directlua{luaotfload.add_fallback("symbols", {"STIX Two Math:mode=harf;", "DejaVu Sans:mode=harf;"})}
+\setmainfont{STIX Two Text}[RawFeature={fallback=symbols}]
+\setmonofont{DejaVu Sans Mono}[Scale=0.85, RawFeature={fallback=symbols}]
+\usepackage{unicode-math}
+\setmathfont{STIX Two Math}
+\usepackage{tikz}
+\usetikzlibrary{graphs, graphdrawing, quotes, arrows.meta}
+\usegdlibrary{layered}
+\usepackage{adjustbox}
+\usepackage{float}
+\usepackage{fvextra}
+\fvset{breaklines=true, breakanywhere=true}
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{breaklines=true, breakanywhere=true}
+\renewcommand{\arraystretch}{1.2}
+% Let identifiers like learn_temperature=True break after underscores (e.g. in table cells).
+\let\oldunderscore\_
+\renewcommand{\_}{\oldunderscore\allowbreak}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  colorlinks=true,
+  linkcolor={Maroon},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{}
+
+\begin{document}
+
+{
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\section{How it works: EEG-to-image
+decoding, end to
+end}\label{how-it-works-eeg-to-image-decoding-end-to-end}
+
+A guided tour of what this repo does and
+why, written for someone who wants to
+understand it deeply. Read it top to
+bottom once; the diagrams are a map you
+can come back to. For the layer-by-layer
+details, the full experiment log and the
+paper map, see
+\href{architecture_deep_dive.pdf}{architecture\_deep\_dive.md}.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{1. The problem in one
+sentence}\label{the-problem-in-one-sentence}
+
+A person looks at a photo while we
+record their EEG for one second. From
+that EEG alone, we must say
+\textbf{which photo they saw}, out of
+200 photos the model has never seen
+during training.
+
+We don\textquotesingle t classify into
+fixed labels: the test images are of
+\emph{new} concepts. Instead, we
+translate brain activity into the
+\textbf{same vector space as the images}
+and then look up the nearest image. That
+is called \textbf{zero-shot retrieval}.
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=16mm, sibling sep=32mm, nodes={box}, edges={semithick}] {
+  EEG [as={\textbf{Brain side} \\ EEG window \\ 63 channels × 120 samples \\ (−0.2 s → +0.8 s around image onset)}];
+  ENC [as={Our EEG encoder \\ (trained by us)}];
+  P [as={Predicted embedding \\ 1536 numbers, length 1}];
+  IMG [as={\textbf{Image side} \\ The photo shown}];
+  DINO [as={DINOv2-giant \\ (frozen, by Meta AI)}];
+  T [as={Image embedding \\ 1536 numbers}];
+  G [as={Gallery of 200 \\ unseen images}];
+  EEG ->[] ENC;
+  ENC ->[] P;
+  IMG ->[] DINO;
+  DINO ->[] T;
+  P --[dashed, "{training: pull together \\ (contrastive loss)}"] T;
+  P ->[very thick, "{test: nearest of 200 \\ (cosine similarity)}"] G;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{2. The data:
+THINGS-EEG2}\label{the-data-things-eeg2}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{THINGS} is a database of 1,854
+  everyday object \emph{concepts}
+  (aardvark, abacus, \ldots, zucchini),
+  with many natural photos per concept.
+\item
+  \textbf{THINGS-EEG2} (Gifford et al.,
+  2022) recorded \textbf{10
+  participants} watching those photos in
+  a \textbf{rapid serial visual
+  presentation} (RSVP): one image every
+  200 ms, with a 63-channel EEG cap.
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{Training set:} 1,654
+    concepts × 10 images = 16,540
+    images, each shown \textbf{4 times}
+    per participant.
+  \item
+    \textbf{Test set:} 200 \emph{other}
+    concepts × 1 image, each shown
+    \textbf{80 times} per participant.
+  \end{itemize}
+\item
+  The competition pipeline (NeuralBench)
+  cuts the continuous recording into one
+  \textbf{window} per image
+  presentation: from 0.2 s before onset
+  to 0.8 s after, filtered,
+  baseline-corrected, robust-scaled,
+  clipped, and \textbf{resampled to 120
+  Hz}. So each example is a
+  \texttt{63\ ×\ 120} matrix.
+\item
+  Window counts in our runs: 668,400
+  training windows (train +
+  NeuralBench\textquotesingle s val
+  split, all concepts) and 162,240 test
+  windows.
+\end{itemize}
+
+\textbf{Why so many repetitions?} A
+single EEG trial is extremely noisy: the
+brain response to an image is small
+compared to everything else going on
+(other neural activity, eye movements,
+muscles, line noise). Averaging repeats
+cancels the noise and keeps the
+image-locked response. This one idea
+comes back three times in this project:
+the metric (§5), repetition-averaged
+training (\#17), and ensembling.
+
+\subsubsection{Visual processing in the
+EEG, in
+brief}\label{visual-processing-in-the-eeg-in-brief}
+
+After an image appears, the visual
+cortex responds within
+\textasciitilde100 ms (low-level
+features: edges, contrast, colour), and
+by \textasciitilde150--300 ms higher
+areas encode object category and
+meaning. Our window (−0.2 → +0.8 s)
+captures all of it. The occipital and
+parietal electrodes (back of the head)
+carry most of the information, which is
+why the encoder learns its own
+\emph{spatial} filters across channels.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{3. The target: DINOv2 image
+embeddings}\label{the-target-dinov2-image-embeddings}
+
+\href{https://arxiv.org/abs/2304.07193}{DINOv2}
+is a vision model trained by
+self-supervision on 142M images. Its
+"giant" version turns any photo into a
+\textbf{1536-d vector} in which similar
+images (same object, similar shape or
+texture) are close together.
+
+We don\textquotesingle t train it.
+It\textquotesingle s a fixed "coordinate
+system for images". Our job is only to
+map EEG into that coordinate system.
+Because DINOv2 places \emph{any} image,
+including the 200 unseen test images, in
+that space, a good EEG→DINOv2 mapping
+transfers to new concepts.
+That\textquotesingle s what makes
+zero-shot possible.
+
+The embeddings are computed once and
+cached (\texttt{cache/});
+\texttt{scripts/mps\_patch.py} computes
+them on the Mac\textquotesingle s GPU.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{4. The model and how it
+learns}\label{the-model-and-how-it-learns}
+
+\subsubsection{\texorpdfstring{4.1 The
+encoder
+(\texttt{submission/submission.py},
+\texttt{EEGToImageEncoder})}{4.1 The encoder (submission/submission.py, EEGToImageEncoder)}}\label{the-encoder-submissionsubmission.py-eegtoimageencoder}
+
+A small convolutional network in the
+\textbf{EEGNet} family (Lawhern et al.,
+2018), about 1.4M parameters:
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=9mm, sibling sep=6mm, nodes={box}, edges={semithick}] {
+  X [as={EEG window \\ 1 × 63 channels × 120 time samples}];
+  TC [as={Temporal convolution \\ 32 filters, 31 taps (\textasciitilde{}0.26 s) \\ = learned band-pass / waveform detectors}];
+  SC [as={Spatial convolution \\ 64 filters spanning all 63 channels \\ = learned electrode weightings (like ICA / beamformers)}];
+  P1 [as={ELU · average-pool ×4 in time · dropout}];
+  SEP [as={Depthwise-separable convolution \\ 64 → 128 feature maps, 15 taps}];
+  P2 [as={ELU · average-pool ×4 · dropout}];
+  F [as={Flatten (128 × 7 = 896 features)}];
+  H [as={Projection head \\ Linear 896→512 · BatchNorm · GELU · dropout · Linear 512→1536}];
+  N [as={L2-normalise → unit-length 1536-d prediction}];
+  X ->[] TC;
+  TC ->[] SC;
+  SC ->[] P1;
+  P1 ->[] SEP;
+  SEP ->[] P2;
+  P2 ->[] F;
+  F ->[] H;
+  H ->[] N;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Temporal then spatial
+  convolutions} mirror how EEG is
+  analysed by hand: first filter in time
+  (which rhythms and waveforms), then
+  combine electrodes (where on the
+  scalp).
+\item
+  \textbf{Pooling} reduces 120 time
+  samples to 7: the response is slow, so
+  fine timing matters less than the
+  overall shape.
+\item
+  \textbf{The head} maps EEG features
+  into DINOv2\textquotesingle s 1536-d
+  space.
+\item
+  \textbf{Normalisation} puts every
+  prediction on the unit sphere, so only
+  its direction matters, matching the
+  cosine-similarity metric.
+\end{itemize}
+
+Issue \#27 makes the widths configurable
+(\texttt{temporal\_filters},
+\texttt{spatial\_filters}, \ldots, plus
+ATM-style residual blocks) to test
+whether the model is too small.
+
+\subsubsection{4.2 The loss: contrastive
+learning (CLIP /
+InfoNCE)}\label{the-loss-contrastive-learning-clip-infonce}
+
+The naive approach would be to minimise
+the distance between prediction and
+target (regression). It works poorly
+here: the EEG can\textquotesingle t
+predict all 1536 numbers, and the model
+learns to output a blurry "average
+image". What we actually need is that
+\textbf{the right image ranks above the
+wrong ones}. Contrastive learning
+optimises exactly that:
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=9mm, sibling sep=6mm, nodes={box}, edges={semithick}] {
+  E [as={\textbf{One batch of 256 (EEG, image) pairs} \\ 256 predictions \\ (from EEG)}];
+  I [as={256 targets \\ (DINOv2 of the shown images)}];
+  S [as={256 × 256 similarity matrix \\ s\_ij = cos(pred\_i, target\_j)}];
+  D [as={Divide by temperature τ}];
+  CE [as={Cross-entropy per row: \\ 'which of the 256 images did EEG i see?' \\ correct answer = the diagonal}];
+  L [as={Loss ↓ = right image pulled closer, \\ 255 wrong ones pushed away}];
+  E ->[] S;
+  I ->[] S;
+  S ->[] D;
+  D ->[] CE;
+  CE ->[] L;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+This is the \textbf{InfoNCE} loss (van
+den Oord et al., 2018), popularised by
+\textbf{CLIP} (Radford et al., 2021) for
+images and text, and used for brain
+decoding by Défossez et al. (2023) and
+Benchetrit et al. (2024) at Meta, and by
+NICE / ATM on THINGS-EEG2.
+
+\textbf{The temperature τ} controls how
+sharp the softmax is. Small τ means the
+loss focuses on the hardest wrong images
+(the ones that look most like the right
+one). CLIP \emph{learns} τ, with a floor
+at 0.01. Learning it instead of fixing
+it at 0.07 was our biggest single gain
+(\textbf{+10 points} held-out). In R6, τ
+fell to the 0.01 floor by epoch 15, so
+R15 tried a lower floor
+(\texttt{min\_temperature=0.005}): τ
+went lower, but the held-out score
+didn\textquotesingle t improve, so the
+floor stays at 0.01.
+
+\textbf{Batch size matters} because the
+other 255 items are the "wrong answers":
+more negatives make a harder, more
+informative task. That\textquotesingle s
+one of the \#18 experiments (batch 512 /
+1024).
+
+\subsubsection{\texorpdfstring{4.3 The
+optimiser and training loop
+(\texttt{Solver.fit})}{4.3 The optimiser and training loop (Solver.fit)}}\label{the-optimiser-and-training-loop-solver.fit}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{AdamW} (Loshchilov \& Hutter,
+  2019) with weight decay 1e-4, learning
+  rate 1e-3, gradient clipping at 1.0.
+\item
+  \textbf{Learning-rate schedule}
+  (\#18): constant by default;
+  \texttt{lr\_schedule=\textquotesingle{}cosine\textquotesingle{}}
+  lowers it smoothly to 0 (Loshchilov \&
+  Hutter, 2017), with an optional linear
+  \textbf{warm-up}. Warm-up matters for
+  large batches (Goyal et al., 2017).
+\item
+  \textbf{Per-epoch held-out scoring +
+  early stopping} (\#15): after each
+  epoch we score the held-out split with
+  the official metric, keep the best
+  epoch\textquotesingle s weights, and
+  stop after \texttt{patience} epochs
+  without improvement.
+\item
+  \textbf{Repetition averaging} (\#17,
+  \texttt{-\/-avg-reps\ K}): train on
+  the mean of K repeats of the same
+  (participant, image) instead of single
+  noisy trials.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{5. How we\textquotesingle re
+scored}\label{how-were-scored}
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=9mm, sibling sep=6mm, nodes={box}, edges={semithick}] {
+  W [as={162,240 test windows \\ 10 participants × 200 images × \textasciitilde{}80 repeats}];
+  PR [as={Encoder: one 1536-d prediction per window}];
+  POOL [as={Pooled metric: \\ each window ranked alone \\ against the 200 image embeddings}];
+  AGG [as={Subject-aggregated metric: \\ average the \textasciitilde{}80 predictions of each \\ (participant, image) first → 2,000 queries}];
+  T5a [as={top-5 accuracy: is the right image \\ among the 5 most similar? \\ (ours: 0.31)}];
+  T5b [as={top-5 subject-agg \\ (ours: 0.74; top-1: 0.40) \\ = the leaderboard metric}];
+  W ->[] PR;
+  PR ->[] POOL;
+  PR ->[] AGG;
+  POOL ->[] T5a;
+  AGG ->[] T5b;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Top-k accuracy:} for each
+  query, rank the 200 gallery images by
+  cosine similarity; a hit if the right
+  one is in the top k. Chance level is
+  5/200 = \textbf{2.5\%} for top-5 and
+  0.5\% for top-1.
+\item
+  \textbf{Subject-aggregated} averages a
+  participant\textquotesingle s repeated
+  responses to the same image before
+  ranking: the same noise-cancelling
+  trick, applied at test time.
+  It\textquotesingle s why 0.74 is so
+  much higher than the pooled 0.31.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{6. How we choose models
+without
+cheating}\label{how-we-choose-models-without-cheating}
+
+The warm-up leaderboard is scored on the
+\textbf{public THINGS-EEG2 test set}.
+Choosing models by their test score
+would quietly overfit to it (teams at
+1.0 on the leaderboard are almost
+certainly leaking test data), and the
+final phase uses different data anyway.
+
+So we built our own \textbf{held-out
+split that mimics the test set}
+(\texttt{src/data/heldout.py},
+\texttt{configs/heldout\_concepts.json}):
+
+\begin{itemize}
+\tightlist
+\item
+  200 \emph{training} concepts are
+  removed entirely from training (no
+  leakage of the concept);
+\item
+  one image per held-out concept forms a
+  200-image gallery, as in the test set.
+\end{itemize}
+
+Every decision (temperature, data,
+epochs, architecture) is made on this
+held-out score. The test set is only
+looked at for the final model, and it
+has matched Codabench to two decimals on
+every upload so far.
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=9mm, sibling sep=6mm, nodes={box}, edges={semithick}] {
+  R [as={\textbf{1 · Explore (held-out)} \\ Run variants \\ (R6, R15, R7…R14) \\ seed 1, 1,454 concepts}];
+  HS [as={Held-out top-5 \\ per epoch}];
+  PICK [as={Keep changes worth \\ ≥ 1.5 points}];
+  RT [as={\textbf{2 · Final models} \\ Retrain the winning recipe \\ on ALL concepts + val data \\ 3 seeds}];
+  ENS [as={Ensemble: average the \\ 3 normalised predictions}];
+  TEST [as={Score once on local test \\ (= Codabench, to 2 decimals)}];
+  ZIP [as={\textbf{3 · Ship} \\ make zip-submission \\ submission.py + weights\_*.pt}];
+  CB [as={Codabench runs \\ load\_model → predict}];
+  RES [as={Log in RESULTS.md}];
+  R ->[] HS;
+  HS ->[] PICK;
+  RT ->[] ENS;
+  ENS ->[] TEST;
+  ZIP ->[] CB;
+  CB ->[] RES;
+  PICK ->[] RT;
+  TEST ->[] ZIP;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\textbf{Why retrain on all concepts?}
+More concepts mean better coverage of
+DINOv2\textquotesingle s space. The gaps
+have been consistent: the same model
+scores 13--16 points higher on test than
+on held-out (held-out images were shown
+\textasciitilde4 times per participant,
+test images \textasciitilde80, so
+subject aggregation removes more noise
+on test), and the all-concept 3-seed
+ensemble added about +3 more (R5: 0.5525
+held-out → 0.711 test → 0.738 final).
+That\textquotesingle s how we forecast:
+0.59 held-out (R6) should land around
+\textbf{0.75--0.78} as a final ensemble.
+
+\textbf{Why ensembles help:} different
+seeds make different errors; averaging
+their (unit-length) predictions cancels
+part of the error.
+That\textquotesingle s the same
+repetition logic again, applied to
+models.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{7. The submission
+contract}\label{the-submission-contract}
+
+Codabench is \textbf{inference-only}: it
+never trains. We upload a ZIP containing
+\texttt{submission.py} and the weights.
+The platform calls
+\texttt{Solver.load\_model(meta)}
+(rebuild the network for
+\texttt{meta{[}"n\_chans"{]}} channels,
+load the weights from a read-only
+folder), then \texttt{model.predict(X)}
+on each test batch. Since \#27,
+\texttt{load\_model} reads the layer
+sizes from the weights themselves, so
+the same \texttt{submission.py} works
+for any encoder width or ensemble.
+
+\texttt{fit} and \texttt{save\_model}
+are only used locally, by
+\texttt{scripts/train\_solver.py}.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{8. Where we are and
+what\textquotesingle s
+running}\label{where-we-are-and-whats-running}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0833}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4306}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2361}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Date
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Change
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Held-out top-5
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Codabench top-5 (subject-agg)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Oct 18 & NeuralBench EEGNet baseline &
+-- & 0.29 \\
+Oct 19 & Our encoder + CLIP loss,
+ensemble & -- & 0.54--0.55 \\
+Oct 19 & \textbf{Learnable temperature}
+& 0.5175 & 0.65 \\
+Oct 19 & \textbf{+25\% data}
+(NeuralBench\textquotesingle s val
+split) & 0.5525 & 0.71 \\
+Oct 20 & Final: all concepts, 3-seed
+ensemble & -- & \textbf{0.74} (top-1
+0.40) \\
+Oct 20 & R6: 40 epochs instead of 20 &
+\textbf{0.590} & (forecast
+0.75--0.78) \\
+Oct 20 & R15: temperature floor 0.005 &
+0.564 (stopped at epoch 32) & no gain \\
+Oct 20 & R7: average 1--4 repetitions &
+0.555 (cut short by early stopping) & to
+re-test \\
+\end{longtable}
+}
+
+Queued (\texttt{logs/round2.status}): R8
+repetition averaging (\#17), R9--R11
+cosine schedule and larger batches
+(\#18), R12--R14 wider encoder (\#27).
+
+\subsubsection{The big caveat for the
+final
+phase}\label{the-big-caveat-for-the-final-phase}
+
+The sealed final phase (Oct 28 -- Nov
+21) is \textbf{not} THINGS-EEG2.
+It\textquotesingle s a private
+\textbf{Alljoined} cohort: \textbf{11
+new participants, 32 channels} (Emotiv
+headset), new images. Everything above
+transfers as a recipe, but the models
+need to be retrained for the 32-channel
+input and must generalise to
+\textbf{unseen people}, which EEG
+notoriously struggles with (skull shape,
+electrode placement and brain anatomy
+differ). That\textquotesingle s
+milestone M4 (\#21: THINGS-EEG2 mapped
+onto the Emotiv montage + joint training
+with Alljoined-1.6M) and \#4 (validation
+on held-out participants).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{9. Glossary}\label{glossary}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.2958}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.7042}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Term
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Meaning
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{Epoch / window / trial} & One
+image presentation\textquotesingle s
+slice of EEG (\texttt{63\ ×\ 120} here).
+\emph{Training} epoch = one pass over
+all windows; context tells which \\
+\textbf{Embedding} & A vector
+representing an item; similar items have
+nearby vectors \\
+\textbf{Cosine similarity} & Dot product
+of unit vectors: 1 = same direction, 0 =
+unrelated \\
+\textbf{Zero-shot} & Recognising classes
+never seen in training, via a shared
+embedding space \\
+\textbf{Contrastive loss / InfoNCE} &
+"Pick the right partner among the batch"
+cross-entropy \\
+\textbf{Temperature τ} & Divides
+similarities before the softmax; smaller
+= sharper \\
+\textbf{Held-out split} & Our private
+test-like validation set (200 training
+concepts) \\
+\textbf{Subject-aggregated} & Average a
+participant\textquotesingle s repeats of
+an image before scoring \\
+\textbf{Seed} & The random-number start;
+different seeds give different models
+from the same recipe \\
+\textbf{Early stopping} & Keep the best
+epoch\textquotesingle s weights, stop
+when the validation score stops
+improving \\
+\textbf{RSVP} & Rapid serial visual
+presentation: images flashed in quick
+succession \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{10. Reading
+list}\label{reading-list}
+
+The full, checked bibliography (with
+which references were verified) is in
+\href{architecture_deep_dive.pdf\#7-paper-map-and-bibliography}{architecture\_deep\_dive.md
+§7}. The arXiv numbers for CLIP, NICE,
+ATM, Benchetrit et al. and the UBP
+details could not be verified offline;
+search the title if a link
+doesn\textquotesingle t resolve.
+
+\subsubsection{Start here: the core
+ideas (≈ 1
+evening)}\label{start-here-the-core-ideas-1-evening}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Lilian Weng, "Contrastive
+  Representation Learning"} (blog,
+  2021). The clearest introduction to
+  InfoNCE, negatives and temperature.
+\item
+  \textbf{Radford et al., "Learning
+  Transferable Visual Models From
+  Natural Language Supervision" (CLIP,
+  2021)}, arXiv:2103.00020. Read §2.3
+  and Figure 3 (the pseudo-code is our
+  loss, learnable temperature included).
+\item
+  \textbf{Song et al., "Decoding Natural
+  Images from EEG for Object
+  Recognition" (NICE, ICLR 2024)},
+  arXiv:2308.13234. \emph{The} paper for
+  our exact setup: THINGS-EEG2, 200-way
+  zero-shot, contrastive EEG↔image
+  training. Its results tables are the
+  yardstick.
+\end{enumerate}
+
+\subsubsection{Our task
+specifically}\label{our-task-specifically}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{3}
+\tightlist
+\item
+  \textbf{Gifford et al., "A large and
+  rich EEG dataset for modeling human
+  visual object recognition"
+  (NeuroImage, 2022)},
+  \url{doi:10.1016/j.neuroimage.2022.119754}.
+  The THINGS-EEG2 dataset paper:
+  paradigm, preprocessing.
+\item
+  \textbf{Hebart et al., "THINGS: A
+  database of 1,854 object concepts and
+  more than 26,000 naturalistic object
+  images" (PLoS ONE, 2019).}
+\item
+  \textbf{Li et al., "Visual Decoding
+  and Reconstruction via EEG Embeddings
+  with Guided Diffusion" (ATM, NeurIPS
+  2024)}, arXiv:2403.07721. A stronger
+  encoder (issue \#12) and the residual
+  projection head behind
+  \texttt{head\_blocks}.
+\item
+  \textbf{"Bridging the Vision-Brain Gap
+  with an Uncertainty-Aware Blur Prior"
+  (UBP, CVPR 2025).} Among the best
+  published THINGS-EEG2 results, and the
+  source of issue \#26\textquotesingle s
+  blurred-image targets.
+\item
+  \textbf{The Alljoined papers (Xu et
+  al.)}: "Alljoined --- A dataset for
+  EEG-to-Image decoding" (2024,
+  arXiv:2404.05553) and "Alljoined-1.6M:
+  A Million-Trial EEG-Image Dataset for
+  Evaluating Affordable Brain-Computer
+  Interfaces" (2025, arXiv:2508.18571,
+  Emotiv headset). The final
+  phase\textquotesingle s data family;
+  read before M4.
+\end{enumerate}
+
+\subsubsection{Brain decoding at Meta
+(same recipe, other
+modalities)}\label{brain-decoding-at-meta-same-recipe-other-modalities}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{8}
+\tightlist
+\item
+  \textbf{Défossez et al., "Decoding
+  speech perception from non-invasive
+  brain recordings" (Nature Machine
+  Intelligence, 2023)},
+  arXiv:2208.12266. The CLIP loss for
+  MEG/EEG, and the subject layer that
+  handles different people.
+\item
+  \textbf{Benchetrit, Banville \& King,
+  "Brain decoding: toward real-time
+  reconstruction of visual perception"
+  (ICLR 2024)}, arXiv:2310.19812.
+  MEG→image retrieval with DINOv2-style
+  targets; very close to what we do.
+\end{enumerate}
+
+\subsubsection{The building
+blocks}\label{the-building-blocks}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{10}
+\tightlist
+\item
+  \textbf{Lawhern et al., "EEGNet: a
+  compact convolutional neural network
+  for EEG-based brain--computer
+  interfaces" (J. Neural Engineering,
+  2018)}, arXiv:1611.08024. Our
+  encoder\textquotesingle s ancestor;
+  explains temporal → spatial →
+  separable convolutions.
+\item
+  \textbf{Oquab et al., "DINOv2:
+  Learning Robust Visual Features
+  without Supervision" (2023)},
+  arXiv:2304.07193. What our target
+  space is.
+\item
+  \textbf{van den Oord et al.,
+  "Representation Learning with
+  Contrastive Predictive Coding"
+  (2018)}, arXiv:1807.03748. Where
+  InfoNCE comes from.
+\item
+  \textbf{Loshchilov \& Hutter,
+  "Decoupled Weight Decay
+  Regularization" (AdamW, ICLR 2019)},
+  arXiv:1711.05101, and \textbf{"SGDR:
+  Stochastic Gradient Descent with Warm
+  Restarts" (ICLR 2017)},
+  arXiv:1608.03983 (cosine schedule).
+\item
+  \textbf{Goyal et al., "Accurate, Large
+  Minibatch SGD: Training ImageNet in 1
+  Hour" (2017)}, arXiv:1706.02677.
+  Linear learning-rate scaling and
+  warm-up for big batches (\#18).
+\end{enumerate}
+
+\subsubsection{EEG fundamentals (if the
+neuroscience side is
+new)}\label{eeg-fundamentals-if-the-neuroscience-side-is-new}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{15}
+\tightlist
+\item
+  \textbf{MNE-Python tutorials}
+  (mne.tools): "Overview of MEG/EEG
+  analysis", epochs, evoked responses.
+  Hands-on, with the same concepts as
+  our pipeline (filtering, epoching,
+  baseline correction).
+\item
+  \textbf{Steven Luck, \emph{An
+  Introduction to the Event-Related
+  Potential Technique}} (MIT Press). Why
+  averaging repeats works, and what the
+  visual responses (P1, N1, N170\ldots)
+  are.
+\item
+  \textbf{Mike X Cohen, \emph{Analyzing
+  Neural Time Series Data}} (MIT Press,
+  2014). Filtering, time-frequency,
+  spatial filters; very readable.
+\end{enumerate}
+
+\subsubsection{Suggested
+order}\label{suggested-order}
+
+Weng\textquotesingle s blog → CLIP §2.3
+→ NICE → this doc\textquotesingle s
+§4--6 again → EEGNet → Défossez → ATM /
+UBP → Alljoined. Then read
+\texttt{submission/submission.py} top to
+bottom: after these, every line should
+make sense.
+
+\end{document}

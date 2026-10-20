@@ -1,7 +1,7 @@
 PYTHON := .venv/bin/python
 PIP := .venv/bin/pip
 
-.PHONY: env env-create env-install neuralbench-config competition-repo test train train-debug zip-submission test-submission pause-training resume-training training-status clean help
+.PHONY: env env-create env-install neuralbench-config competition-repo test train train-debug zip-submission test-submission pause-training resume-training training-status docs-latex clean help
 
 help:
 	@echo "Available commands:"
@@ -14,6 +14,7 @@ help:
 	@echo "  make pause-training   - Freeze local training runs (frees the GPU; nothing is lost)"
 	@echo "  make resume-training  - Continue them where they stopped"
 	@echo "  make training-status  - Running / paused, and the latest epoch"
+	@echo "  make docs-latex       - docs/*.md -> docs/latex/*.tex + PDF (pandoc + LuaLaTeX; diagrams as TikZ)"
 	@echo "  make clean            - Remove temporary caches"
 
 env: env-create env-install competition-repo neuralbench-config
@@ -89,6 +90,9 @@ resume-training:
 
 training-status:
 	@scripts/training.sh status
+
+docs-latex:
+	$(PYTHON) scripts/docs_to_latex.py
 
 clean:
 	find . -type d -name "__pycache__" -not -path "./.venv/*" -exec rm -rf {} +

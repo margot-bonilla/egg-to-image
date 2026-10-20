@@ -1,0 +1,2369 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+\documentclass[
+  11pt,
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\usepackage{fontspec}
+% Symbols missing from the text fonts (arrows, maths signs) come from these fallbacks.
+\directlua{luaotfload.add_fallback("symbols", {"STIX Two Math:mode=harf;", "DejaVu Sans:mode=harf;"})}
+\setmainfont{STIX Two Text}[RawFeature={fallback=symbols}]
+\setmonofont{DejaVu Sans Mono}[Scale=0.85, RawFeature={fallback=symbols}]
+\usepackage{unicode-math}
+\setmathfont{STIX Two Math}
+\usepackage{tikz}
+\usetikzlibrary{graphs, graphdrawing, quotes, arrows.meta}
+\usegdlibrary{layered}
+\usepackage{adjustbox}
+\usepackage{float}
+\usepackage{fvextra}
+\fvset{breaklines=true, breakanywhere=true}
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{breaklines=true, breakanywhere=true}
+\renewcommand{\arraystretch}{1.2}
+% Let identifiers like learn_temperature=True break after underscores (e.g. in table cells).
+\let\oldunderscore\_
+\renewcommand{\_}{\oldunderscore\allowbreak}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  colorlinks=true,
+  linkcolor={Maroon},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{}
+
+\begin{document}
+
+{
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\section{Architecture deep dive: the
+model, the recipe, the
+evidence}\label{architecture-deep-dive-the-model-the-recipe-the-evidence}
+
+This is the reference for teaching the
+project. It goes layer by layer through
+the model, derives the loss, explains
+the evaluation, lists every experiment
+with its numbers, and maps each idea to
+the paper it comes from.
+
+\begin{itemize}
+\tightlist
+\item
+  Start with
+  \href{how_it_works.pdf}{how\_it\_works.md}
+  for the overview (task, data, big
+  picture). This document assumes it and
+  goes deeper.
+\item
+  Code references are to commit
+  \texttt{0e9ff1f} (2026-10-20) on
+  branch \texttt{ws-m1-infra} (§9:
+  \texttt{d3ed4ea}). Function and class
+  names are stable; line numbers drift,
+  so search for the name.
+\item
+  Every number below comes from a file
+  in the repo (\texttt{RESULTS.md},
+  \texttt{logs/},
+  \texttt{submissions/*/run\_config*.json})
+  or from a script run on the model.
+  Anything that couldn\textquotesingle t
+  be checked is marked
+  \textbf{(unverified)}.
+\end{itemize}
+
+Contents
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \hyperref[1-the-encoder-layer-by-layer]{The
+  encoder, layer by layer}
+\item
+  \hyperref[2-where-the-encoder-comes-from]{Where
+  the encoder comes from (lineage and
+  history)}
+\item
+  \hyperref[3-the-loss-and-the-training-recipe]{The
+  loss and the training recipe}
+\item
+  \hyperref[4-evaluation-in-detail]{Evaluation
+  in detail}
+\item
+  \hyperref[5-every-experiment-and-its-result]{Every
+  experiment and its result}
+\item
+  \hyperref[6-submission-and-inference-path]{Submission
+  and inference path}
+\item
+  \hyperref[7-paper-map-and-bibliography]{Paper
+  map and bibliography}
+\item
+  \hyperref[8-teaching-kit]{Teaching
+  kit}
+\item
+  \hyperref[9-next-new-people-and-new-headsets-in-progress]{Next:
+  new people and new headsets (in
+  progress)}
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{1. The encoder, layer by
+layer}\label{the-encoder-layer-by-layer}
+
+\texttt{EEGToImageEncoder} in
+\texttt{submission/submission.py}. One
+input window is a matrix of \textbf{63
+electrodes × 120 time samples} (1 s at
+120 Hz, from −0.2 s to +0.8 s around
+image onset). The output is one
+\textbf{unit-length 1536-d vector} in
+DINOv2-giant\textquotesingle s embedding
+space.
+
+\subsubsection{1.1 The whole network at
+a
+glance}\label{the-whole-network-at-a-glance}
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=16mm, sibling sep=32mm, nodes={box}, edges={semithick}] {
+  IN [as={EEG window}];
+  U [as={unsqueeze: treat it as a 1-channel image}];
+  TC [as={Temporal conv 1→32, kernel (1, 31), pad 15 \\ + BatchNorm}];
+  SC [as={Spatial conv 32→64, kernel (63, 1) \\ + BatchNorm + ELU}];
+  P1 [as={AvgPool (1, 4) + Dropout 0.25}];
+  DW [as={Depthwise conv 64→64, kernel (1, 15), groups 64}];
+  PW [as={Pointwise conv 64→128, kernel (1, 1) \\ + BatchNorm + ELU}];
+  P2 [as={AvgPool (1, 4) + Dropout 0.25}];
+  FL [as={Flatten}];
+  H1 [as={Linear 896→512 + BatchNorm + GELU + Dropout}];
+  H2 [as={Linear 512→1536}];
+  N [as={L2 normalise}];
+  OUT [as={Predicted image embedding}];
+  IN ->["{(B, 63, 120)}"] U;
+  U ->["{(B, 1, 63, 120)}"] TC;
+  TC ->["{(B, 32, 63, 120)}"] SC;
+  SC ->["{(B, 64, 1, 120)}"] P1;
+  P1 ->["{(B, 64, 1, 30)}"] DW;
+  DW ->["{(B, 64, 1, 30)}"] PW;
+  PW ->["{(B, 128, 1, 30)}"] P2;
+  P2 ->["{(B, 128, 1, 7)}"] FL;
+  FL ->["{(B, 896)}"] H1;
+  H1 ->["{(B, 512)}"] H2;
+  H2 ->["{(B, 1536)}"] N;
+  N ->["{(B, 1536), length 1}"] OUT;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\subsubsection{1.2 Layer table
+(computed, not
+estimated)}\label{layer-table-computed-not-estimated}
+
+Shapes and parameter counts were
+produced by running the class on a
+\texttt{(2,\ 63,\ 120)} input on CPU
+(script in exercise 1, §8.3).
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0741}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.5926}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2346}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0988}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\#
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Module (exact PyTorch)
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Shape in → out
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Parameters
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 &
+\texttt{Conv2d(1,\ 32,\ kernel\_size=(1,\ 31),\ padding=(0,\ 15),\ bias=False)}
+& (B,1,63,120) → (B,32,63,120) & 992 \\
+2 & \texttt{BatchNorm2d(32)} & same &
+64 \\
+3 &
+\texttt{Conv2d(32,\ 64,\ kernel\_size=(63,\ 1),\ groups=1,\ bias=False)}
+& (B,32,63,120) → (B,64,1,120) &
+\textbf{129,024} \\
+4 & \texttt{BatchNorm2d(64)} ·
+\texttt{ELU()} & same & 128 \\
+5 &
+\texttt{AvgPool2d((1,\ 4),\ stride=(1,\ 4))}
+· \texttt{Dropout(0.25)} & (B,64,1,120)
+→ (B,64,1,30) & 0 \\
+6 &
+\texttt{Conv2d(64,\ 64,\ kernel\_size=(1,\ 15),\ padding=(0,\ 7),\ groups=64,\ bias=False)}
+& (B,64,1,30) → same & 960 \\
+7 &
+\texttt{Conv2d(64,\ 128,\ kernel\_size=(1,\ 1),\ bias=False)}
+& (B,64,1,30) → (B,128,1,30) & 8,192 \\
+8 & \texttt{BatchNorm2d(128)} ·
+\texttt{ELU()} & same & 256 \\
+9 &
+\texttt{AvgPool2d((1,\ 4),\ stride=(1,\ 4))}
+· \texttt{Dropout(0.25)} & (B,128,1,30)
+→ (B,128,1,7) & 0 \\
+10 & \texttt{flatten} & (B,128,1,7) →
+(B,896) & 0 \\
+11 & \texttt{Linear(896,\ 512)} &
+(B,896) → (B,512) & \textbf{459,264} \\
+12 & \texttt{BatchNorm1d(512)} ·
+\texttt{GELU()} · \texttt{Dropout(0.25)}
+& same & 1,024 \\
+13 & \texttt{Linear(512,\ 1536)} &
+(B,512) → (B,1536) & \textbf{787,968} \\
+14 & \texttt{F.normalize(p=2,\ dim=-1)}
+& same & 0 \\
+& \textbf{Total} & &
+\textbf{1,387,872} \\
+\end{longtable}
+}
+
+\textbf{Where the parameters are:} the
+convolutional "feature extractor"
+(layers 1--9) has 139,616 parameters
+(10\%); the projection head (11--13) has
+1,248,256 (90\%). The network is mostly
+a mapping from 896 EEG features to
+DINOv2 space. The single biggest conv
+layer is the spatial one (129k), because
+every output filter sees all 32 temporal
+maps on all 63 electrodes.
+
+Size variants from \#27
+(\texttt{temporal\_filters},
+\texttt{spatial\_filters},
+\texttt{sep\_filters},
+\texttt{hidden\_dim},
+\texttt{head\_blocks}), also computed:
+wider convs 64/128/256 → 2.26M; head
+1024 + 1 residual block → 5.00M; both →
+6.33M.
+
+\subsubsection{1.3 What each layer does,
+and
+why}\label{what-each-layer-does-and-why}
+
+\textbf{Input reshaping.} EEG is not an
+image: one axis is space (electrodes),
+the other is time. Treating it as a
+1-channel image \texttt{(1,\ 63,\ 120)}
+lets us use 2-D convolutions whose
+kernels are 1-D in one axis:
+\texttt{(1,\ k)} kernels act
+\textbf{along time only},
+\texttt{(63,\ 1)} kernels \textbf{across
+electrodes only}. This "factorised"
+spatio-temporal design is the core idea
+of ShallowConvNet / DeepConvNet
+(Schirrmeister et al., 2017) and EEGNet
+(Lawhern et al., 2018).
+
+\textbf{1--2. Temporal convolution (32
+filters × 31 taps) + BatchNorm.}
+
+\begin{itemize}
+\tightlist
+\item
+  Each filter is a \textbf{learned FIR
+  filter} applied identically to every
+  electrode (the kernel is
+  \texttt{(1,\ 31)}, so it slides along
+  time and is shared across rows).
+\item
+  31 taps at 120 Hz span \textbf{258
+  ms}. A filter of that length can
+  isolate frequency bands about 120/31 ≈
+  4 Hz wide anywhere between 0 and the
+  60 Hz Nyquist limit: theta (4--8 Hz),
+  alpha (8--13 Hz), beta, or act as a
+  matched filter for the shape of an
+  evoked response.
+\item
+  \texttt{padding=15} keeps the 120
+  samples ("same" convolution). The
+  first and last 15 samples are computed
+  against zero padding, so the window
+  edges are slightly less reliable.
+\item
+  \texttt{bias=False} because the
+  BatchNorm right after has its own
+  shift.
+\item
+  \textbf{BatchNorm2d} (Ioffe \&
+  Szegedy, 2015) standardises each
+  filter\textquotesingle s output over
+  the batch, electrodes and time, which
+  keeps training stable at a high
+  learning rate.
+\item
+  Lineage: EEGNet uses 8 filters of half
+  the sampling rate (64 taps at 128 Hz ≈
+  500 ms); ShallowConvNet uses 40
+  filters of 25 taps at 250 Hz (100 ms).
+  Ours sits in between, with more
+  filters.
+\end{itemize}
+
+\textbf{3--4. Spatial convolution (64
+filters spanning all 63 electrodes) +
+BatchNorm + ELU.}
+
+\begin{itemize}
+\tightlist
+\item
+  Kernel \texttt{(63,\ 1)}: each output
+  is a \textbf{weighted sum over all
+  electrodes} at one time point. This is
+  a learned \textbf{spatial filter}, the
+  deep-learning version of classical
+  techniques like Common Spatial
+  Patterns (CSP), beamformers, or
+  picking an ICA component: it can, for
+  example, weight the occipital
+  electrodes positively and subtract a
+  frontal reference.
+\item
+  \texttt{groups=1} means each of the 64
+  spatial filters mixes \textbf{all 32
+  temporal maps}: it combines frequency
+  bands and electrodes jointly (32 × 63
+  = 2,016 weights per filter). EEGNet
+  instead uses a \textbf{depthwise}
+  spatial conv (each spatial filter sees
+  only one temporal map,
+  \texttt{D\ =\ 2} spatial filters per
+  temporal filter, 63 weights each, with
+  a max-norm constraint). Ours has many
+  more parameters here (129k vs
+  EEGNet\textquotesingle s 1,008 at the
+  same input size). \emph{Note:} the
+  original scaffold\textquotesingle s
+  comment calls this layer "depthwise"
+  but the code has always used
+  \texttt{groups=1} (commit
+  \texttt{db3fb74}); the code is what
+  ran in every experiment.
+\item
+  The kernel height is the channel
+  count, so \textbf{the layer is tied to
+  63 electrodes in a fixed order}.
+  That\textquotesingle s why a
+  THINGS-EEG2 model
+  can\textquotesingle t run on the final
+  phase\textquotesingle s 32 Emotiv
+  channels without retraining (see issue
+  \#21 and the planned position-based
+  spatial attention).
+\item
+  \textbf{ELU} (exponential linear unit,
+  Clevert et al., 2016) is smooth for
+  negative inputs; EEGNet and
+  ShallowConvNet-family models use it.
+\end{itemize}
+
+\textbf{5. Average pooling (×4) +
+Dropout.}
+
+\begin{itemize}
+\tightlist
+\item
+  120 → 30 time steps: an average over 4
+  samples is a crude \textbf{low-pass
+  filter followed by downsampling} to 30
+  Hz (33 ms per step). Evoked visual
+  responses are slow (most power below
+  \textasciitilde20 Hz), so little is
+  lost and later layers become cheaper
+  and see longer stretches of time.
+\item
+  \textbf{Dropout 0.25} randomly zeroes
+  25\% of activations during training
+  (Srivastava et al., 2014).
+  EEGNet\textquotesingle s paper
+  recommends 0.25 for cross-subject
+  training (0.5 within-subject)
+  \textbf{(from memory of the EEGNet
+  paper; braindecode\textquotesingle s
+  default is 0.25)}.
+\end{itemize}
+
+\textbf{6--8. Depthwise-separable
+convolution + BatchNorm + ELU.}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Depthwise} (layer 6): each of
+  the 64 maps gets its \textbf{own}
+  15-tap temporal filter
+  (\texttt{groups=64}, 960 weights). At
+  30 Hz, 15 taps span \textbf{500 ms}:
+  it summarises how each spatial
+  component evolves over half a second.
+\item
+  \textbf{Pointwise} (layer 7): a 1×1
+  conv that mixes the 64 maps into 128
+  (8,192 weights).
+\item
+  Splitting "filter in time" from "mix
+  the maps" is a
+  \textbf{depthwise-separable
+  convolution} (Chollet, Xception, CVPR
+  2017), adopted by EEGNet to use far
+  fewer parameters than a full conv (a
+  full 64→128 conv with 15 taps would
+  need 122,880 weights instead of
+  9,152).
+\end{itemize}
+
+\textbf{9. Average pooling (×4) +
+Dropout.} 30 → 7 time steps (30/4 = 7.5,
+floored: the last two 30 Hz steps are
+not pooled, though their information
+still reaches step 6 through the
+depthwise kernel). Each final step
+represents 16 input samples =
+\textbf{133 ms}.
+
+\textbf{10. Flatten → 896 features.} 128
+maps × 7 time steps. Flattening (rather
+than averaging over time) keeps
+\textbf{when} each feature occurred: the
+next layer has separate weights for
+"component 12 at 100--233 ms" and
+"component 12 at 500--633 ms". That
+matters because the timing of visual
+responses carries information. It is
+also our best explanation for why random
+time-shift augmentation hurt (R4, §5).
+
+\textbf{Receptive field of the final
+features.} Following the layers back to
+the input: temporal conv (31) → pool
+(stride 4) → depthwise conv (15 at
+stride 4) → pool (stride 16). Each of
+the 7 final time steps sees \textbf{102
+input samples = 850 ms}, and consecutive
+steps are \textbf{133 ms apart}. Step 0
+covers roughly −200 → +283 ms around
+image onset; step 6 roughly +242 → +792
+ms. So every final feature integrates
+most of the window, with a different
+centre of gravity: early steps emphasise
+the first visual responses
+(\textasciitilde100--200 ms), late steps
+the later, more semantic activity.
+
+\textbf{11--13. Projection head.}
+\texttt{Linear(896→512)\ →\ BatchNorm1d\ →\ GELU\ →\ Dropout\ →\ Linear(512→1536)}.
+
+\begin{itemize}
+\tightlist
+\item
+  A two-layer MLP that maps EEG features
+  into DINOv2\textquotesingle s 1536-d
+  space. Using an MLP "projector"
+  between the encoder and the
+  contrastive loss is the standard
+  recipe in contrastive learning (CLIP
+  uses linear projections; SimCLR showed
+  a non-linear head helps).
+\item
+  \textbf{GELU} (Hendrycks \& Gimpel,
+  2016) is a smooth ReLU used in
+  transformers.
+\item
+  It\textquotesingle s 90\% of the
+  model. The NeuralBench EEGNet baseline
+  instead reads 48 features (16 maps × 3
+  time steps) straight into 1536 outputs
+  with a single linear layer; that
+  "bigger head" is one of the two
+  changes \texttt{RESULTS.md} credits
+  for our jump from 0.30 to 0.54 (§2.2).
+\item
+  Optional (\#27): \texttt{head\_blocks}
+  adds residual blocks
+  \texttt{x\ +\ Dropout(Linear(GELU(x)))}
+  on the 1536-d output followed by
+  \texttt{LayerNorm}, as in
+  ATM\textquotesingle s projector (Li et
+  al., 2024). Off by default; R13/R14 in
+  the queue test it.
+\end{itemize}
+
+\textbf{14. L2 normalisation.} Divides
+the output by its length so it lies on
+the unit sphere. The metric ranks by
+\textbf{cosine similarity}, which only
+depends on direction, and the loss
+normalises the targets too, so
+predictions and targets are compared
+purely by angle.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{2. Where the encoder comes
+from}\label{where-the-encoder-comes-from}
+
+\subsubsection{2.1 Family
+tree}\label{family-tree}
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=16mm, sibling sep=32mm, nodes={box}, edges={semithick}] {
+  FBCSP [as={Filter-bank CSP \\ (classical BCI: \\ band-pass, then spatial filters)}];
+  SH [as={ShallowConvNet / DeepConvNet \\ Schirrmeister et al. 2017 \\ temporal conv → spatial conv}];
+  EEGNET [as={EEGNet \\ Lawhern et al. 2018 \\ + depthwise spatial conv \\ + separable conv, ELU, dropout}];
+  XC [as={Xception \\ Chollet 2017 \\ depthwise-separable conv}];
+  NB [as={NeuralBench EEGNet baseline \\ 77k params, linear readout \\ our 0.29}];
+  OURS [as={Our EEGToImageEncoder \\ full spatial conv, wider, \\ 512-d MLP head, 1.39M params \\ our 0.54 → 0.74}];
+  CLIP [as={CLIP \\ Radford et al. 2021 \\ contrastive loss, projector, \\ learnable temperature}];
+  NICE [as={NICE \\ Song et al. 2024 \\ ShallowNet-style patch encoder \\ + residual projector}];
+  ATM [as={ATM \\ Li et al. 2024 \\ channel attention + conv \\ + residual projector}];
+  FBCSP ->[] SH;
+  SH ->[] EEGNET;
+  XC ->[] EEGNET;
+  EEGNET ->[] NB;
+  EEGNET ->[] OURS;
+  CLIP ->[] OURS;
+  SH ->[] NICE;
+  NICE ->[] ATM;
+  ATM ->[dashed, "{head\_blocks option, issue 27}"] OURS;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Filter-bank CSP} is the
+  classical pipeline for EEG decoding:
+  band-pass filter the signal into
+  several frequency bands, learn spatial
+  filters per band, then classify the
+  log-power.
+\item
+  \textbf{ShallowConvNet} (Schirrmeister
+  et al., 2017) turned that into a
+  network: temporal conv (40 filters ×
+  25 taps) → spatial conv (40) →
+  squaring → mean pooling (75, stride
+  15) → log → classifier, i.e. a
+  learnable filter-bank CSP.
+  \textbf{DeepConvNet} stacks four
+  conv-pool blocks. (Defaults verified
+  in braindecode\textquotesingle s
+  \texttt{ShallowFBCSPNet}: 40 / 25 / 40
+  / 75 / 15.)
+\item
+  \textbf{EEGNet} (Lawhern et al., 2018)
+  made it compact: temporal conv (F1 = 8
+  filters, 64 taps) → depthwise spatial
+  conv (D = 2 per temporal filter,
+  max-norm constrained) → BatchNorm,
+  ELU, average pooling, dropout →
+  separable conv (F2 = 16) → pooling →
+  classifier. (Defaults verified in
+  braindecode\textquotesingle s
+  \texttt{EEGNet}: F1 = 8, D = 2, F2 =
+  F1·D, kernel 64, depthwise kernel 16,
+  dropout 0.25.)
+\item
+  \textbf{Our encoder} keeps
+  EEGNet\textquotesingle s block order
+  and its separable conv, but uses 4×
+  more temporal filters (32), a
+  \textbf{full} (non-depthwise,
+  unconstrained) spatial conv with 64
+  filters, 128 separable maps, a shorter
+  temporal kernel (31 taps at 120 Hz),
+  and replaces the classifier with a
+  2-layer \textbf{projection head} into
+  DINOv2 space trained with a CLIP loss.
+\item
+  \textbf{NICE} (Song et al., ICLR 2024)
+  and \textbf{ATM} (Li et al., NeurIPS
+  2024) are the THINGS-EEG2 state of the
+  art that issue \#12 targets. From the
+  papers and their public code, roughly
+  \textbf{(unverified in detail; check
+  the papers\textquotesingle{}
+  architecture figures)}:
+  NICE\textquotesingle s encoder is a
+  ShallowNet-style temporal conv →
+  average pooling → spatial conv
+  producing a short sequence of patch
+  embeddings, then a projector
+  \texttt{Linear\ →\ residual(GELU,\ Linear,\ Dropout)\ →\ LayerNorm};
+  NICE-GA adds graph attention over
+  electrodes. ATM adds a channel-wise
+  transformer embedding (with a subject
+  token) before a similar conv block and
+  residual projector. Our
+  \texttt{head\_blocks} option is that
+  residual projector.
+\end{itemize}
+
+\subsubsection{2.2 The true history
+(from
+git)}\label{the-true-history-from-git}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.1341}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2561}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.6098}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Date
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Commit
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+What happened
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+2026-09-11 & \texttt{db3fb74} & Initial
+scaffold.
+\texttt{src/models/eeg\_encoder.py}
+defines the architecture as
+\textbf{learning TODOs} "based on EEGNet
+principles": temporal conv (1, 31) × 32
+→ spatial conv (n\_chans, 1) × 64 →
+separable conv → 512-d projection head →
+1536, L2-normalised. The layer sizes we
+still use were fixed here. \\
+2026-09-13 & \texttt{7d7dc1e} & TODOs
+completed ("complete TODOs for
+setup"). \\
+2026-10-17/18 & \texttt{6896932},
+\texttt{bf5bf17} &
+\texttt{submission/submission.py} made
+self-contained (torch only) and fixed
+for the Codabench contract; state\_dict
+keys match
+\texttt{src/models/eeg\_encoder.py}. \\
+2026-10-18 & \texttt{7b439e0} &
+\textbf{First real upload:
+NeuralBench\textquotesingle s own
+EEGNet} (official template), 0.29. \\
+2026-10-19 & \texttt{da20e91},
+\texttt{c652e3a} & Our encoder trained
+on THINGS-EEG2 with InfoNCE:
+\textbf{0.54} (held-out 42.15\%). Seeded
+training and \texttt{weights\_*.pt}
+ensembling added. \\
+2026-10-19 & \texttt{5facb9b} & Training
+options for the round-1 experiments
+(\texttt{learn\_temperature},
+\texttt{dedup}, \texttt{symmetric},
+augmentation) and \texttt{-\/-set}
+overrides. \\
+2026-10-19 & \texttt{1a8fc30},
+\texttt{41b152e}, \texttt{2fb5a51} &
+Learnable temperature (+10 held-out),
+\texttt{-\/-use-val} (+3.5). \\
+2026-10-20 & \texttt{e34d3f1} & Final
+3-seed ensemble on all concepts: 73.80\%
+test, \textbf{0.74} on Codabench. \\
+2026-10-20 & \texttt{18992e0},
+\texttt{424c9b5} & Per-epoch held-out
+scoring + early stopping (\#15);
+repetition averaging (\#17). \\
+2026-10-20 & \texttt{e893e30},
+\texttt{c5881bd}, \texttt{48925dd} &
+Schedule / weight decay / dropout
+settings (\#18); encoder size settings,
+sizes read back from weights (\#27);
+\texttt{min\_temperature}. \\
+2026-10-20 & \texttt{68d2b65},
+\texttt{0e9ff1f} & Window cache (\#14);
+per-epoch checkpoints and
+\texttt{-\/-resume}; pause/resume. \\
+\end{longtable}
+}
+
+\textbf{Why our encoder beat the
+NeuralBench baseline by 24 points}
+(\texttt{RESULTS.md}: "bigger head, 10×
+higher lr"). The
+baseline\textquotesingle s configuration
+(\texttt{submissions/neuralbench\_eegnet\_things\_eeg2\_seed34/run\_config.yaml})
+versus ours:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.0761}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.5435}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3804}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+NeuralBench EEGNet (0.29--0.30)
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Our encoder (0.54)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Network & braindecode EEGNet defaults
+(F1 8, D 2, F2 16, kernel 64),
+\textbf{77k parameters} (counted from
+the shipped weights) & 1.39M
+parameters \\
+Readout & one linear layer: 48 features
+(16 maps × 3 steps) → 1536 & 896
+features → 512 → 1536 MLP \\
+Optimiser & AdamW, \textbf{lr 1e-4},
+weight decay 0.05, OneCycle schedule &
+AdamW, \textbf{lr 1e-3}, weight decay
+1e-4, constant \\
+Batch & 64 & 256 (4× more negatives per
+step) \\
+Loss & NeuralBench \texttt{ClipLoss},
+fixed temperature & our
+\texttt{clip\_loss}, τ = 0.07 fixed
+(learnable later) \\
+Stopping & 40 epochs, patience 5 on a
+validation rank metric & 20 epochs \\
+\end{longtable}
+}
+
+We never ran the ablation that separates
+these factors, so the split between
+"bigger head", "higher lr" and "bigger
+batch" is \textbf{not measured}.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{3. The loss and the training
+recipe}\label{the-loss-and-the-training-recipe}
+
+All in \texttt{Solver.fit} and
+\texttt{clip\_loss} in
+\texttt{submission/submission.py},
+driven by
+\texttt{scripts/train\_solver.py}.
+
+\subsubsection{3.1 The contrastive
+(InfoNCE / CLIP)
+loss}\label{the-contrastive-infonce-clip-loss}
+
+For a batch of \(B\) windows, let
+\(p_i\) be the model\textquotesingle s
+unit-length prediction for window \(i\)
+and \(t_i\) the DINOv2 embedding of the
+image that window shows (normalised
+inside the loss). The similarity matrix
+is \(s_{ij} = p_i \cdot t_j\) (cosine).
+With temperature \(\tau\):
+
+\[
+\mathcal{L} = -\frac{1}{B}\sum_{i=1}^{B} \log \frac{\exp(s_{ii}/\tau)}{\sum_{j=1}^{B}\exp(s_{ij}/\tau)}
+\]
+
+Read it as a \textbf{B-way
+classification per row}: "which of the B
+images in this batch did EEG window
+\(i\) see?" The correct answer is the
+diagonal; the other \(B-1\) images in
+the batch are the \textbf{negatives}
+("in-batch negatives"), so no extra
+sampling is needed. Minimising it pulls
+\(p_i\) towards \(t_i\) and pushes it
+away from the other targets, which is
+exactly what top-k retrieval rewards.
+This is \textbf{InfoNCE} (van den Oord
+et al., 2018), popularised by
+\textbf{CLIP} (Radford et al., 2021),
+and used for brain decoding by Défossez
+et al. (2023), NICE, ATM.
+
+Why not regression (minimise
+\(\|p_i - t_i\|^2\))? A regression model
+facing noisy input predicts the
+conditional mean, a blurry "average
+image" that sits close to everything and
+ranks poorly. \#23\textquotesingle s
+post-hoc ridge maps confirmed it: fitted
+by squared error, they scored
+0.046--0.052 held-out (§5).
+
+\textbf{Options tested in round 1:}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{symmetric=True} adds the
+  column-wise term (for each image,
+  which EEG window matches?), as in
+  CLIP. No gain here (R3).
+\item
+  \texttt{dedup=True} masks out "false
+  negatives": other windows in the batch
+  that show the \textbf{same} image
+  (each training image has
+  \textasciitilde40 windows: 10 subjects
+  × 4 repetitions). With
+  \textasciitilde14.5k training images
+  and batch 256, a batch contains only
+  about 2 such pairs on average
+  \textbf{(our estimate)}, which
+  explains why it made no difference
+  (R1: 41.20\% vs 41.35\%).
+\end{itemize}
+
+\subsubsection{3.2 The
+temperature}\label{the-temperature}
+
+\(\tau\) divides the similarities before
+the softmax. Small \(\tau\) makes the
+softmax sharp, so the loss concentrates
+on the hardest negatives (images that
+look most like the right one).
+
+\begin{itemize}
+\tightlist
+\item
+  Fixed at \textbf{0.07} at first (a
+  common default).
+\item
+  \textbf{Learnable}
+  (\texttt{learn\_temperature=True}),
+  parameterised as CLIP does: the
+  trainable parameter is
+  \(\log(1/\tau)\) (initialised to
+  \(\log(1/0.07) \approx 2.66\)) and it
+  is clamped at \(\log 100\), i.e.
+  \textbf{\(\tau \ge 0.01\)} ("logit
+  scale at most 100").
+  It\textquotesingle s trained with the
+  model by the same optimiser.
+\item
+  Effect: \textbf{+10 points held-out}
+  (R2: 41.35\% → 51.75\%), the biggest
+  single gain.
+\item
+  In R6 the learned \(\tau\) fell from
+  0.027 (epoch 1) to the \textbf{0.01
+  floor by epoch \textasciitilde15} and
+  stayed there. R15 lowered the floor to
+  0.005 (\texttt{min\_temperature}):
+  \(\tau\) went to 0.0072, but held-out
+  trailed R6 at every comparable epoch
+  (best 0.564 vs 0.582 by epoch 31) when
+  a restart stopped it at epoch 32.
+  \textbf{Conclusion: no gain}, floor
+  stays at 0.01.
+\end{itemize}
+
+\subsubsection{3.3
+Optimisation}\label{optimisation}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.1304}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3261}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.5435}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Setting
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Value
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Notes / source
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Optimiser & \textbf{AdamW} & Adam with
+decoupled weight decay (Loshchilov \&
+Hutter, ICLR 2019) \\
+Learning rate & \textbf{1e-3} & 10× the
+NeuralBench baseline \\
+Weight decay & \textbf{1e-4} &
+\texttt{weight\_decay} setting (\#18);
+applied to the temperature parameter too
+(negligible) \\
+Batch size & \textbf{256} &
+\texttt{-\/-batch-size}; more negatives
+per step. R10/R11 test 512 / 1024 with
+linearly scaled lr (Goyal et al.,
+2017) \\
+Gradient clipping & max norm
+\textbf{1.0} & stabilises early
+training \\
+Schedule & constant (default);
+\texttt{lr\_schedule=\textquotesingle{}cosine\textquotesingle{}}
++ \texttt{warmup\_epochs} & Cosine decay
+from SGDR (Loshchilov \& Hutter, ICLR
+2017); linear warm-up from Goyal et al.
+2017. Applied per step via
+\texttt{LambdaLR} \\
+Epochs & 20 originally; \textbf{40} in
+R6 (+3.75 held-out) & longer training
+still improving at 40 \\
+Dropout & 0.25 & \texttt{dropout}
+setting \\
+Seed & \texttt{-\/-seed} & seeds weight
+init, shuffling and dropout \\
+\end{longtable}
+}
+
+\subsubsection{3.4 Data-side
+recipe}\label{data-side-recipe}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{More data
+  (\texttt{-\/-use-val}, \#16):}
+  NeuralBench\textquotesingle s own
+  "val" split of THINGS-EEG2 is ordinary
+  training data (same concepts). Adding
+  it gives +25\% windows (470,140 →
+  587,574 with the held-out concepts
+  removed; 668,400 for final models on
+  all concepts): \textbf{+3.5 held-out}.
+\item
+  \textbf{Augmentation (R4):} random
+  circular time shift up to ±6 samples
+  (±50 ms) and 10\% channel dropout. It
+  \textbf{hurt badly} (49.85\% →
+  36.80\%). Our interpretation
+  \textbf{(hypothesis, not tested)}: the
+  flattened readout uses absolute timing
+  (§1.3, layer 10), the circular roll
+  wraps the end of the window onto the
+  start, and 50 ms is large relative to
+  visual response latencies.
+\item
+  \textbf{Repetition averaging
+  (\texttt{-\/-avg-reps\ K}, \#17,
+  Gifford et al. averaged repetitions
+  too):} each training item becomes the
+  mean of K repetitions of the same
+  (subject, image), which cuts
+  independent noise by about
+  \(\sqrt{K}\). With
+  \texttt{-\/-avg-reps-random} K is
+  drawn from 1..K per item, mixing clean
+  and noisy examples (test inputs are
+  single trials). There are 145,400
+  (subject, image) groups, so an "epoch"
+  is \textbf{4× shorter} than with
+  single windows. \textbf{Caveat:} early
+  stopping counts epochs, so patience 5
+  is effectively 4× less patient. R7
+  (random 1--4) was still rising when it
+  stopped at 0.555 (R6: 0.590), but it
+  got there in 31 min, where R6 needed
+  \textasciitilde105 min for 0.59 and
+  was at \textasciitilde0.51 after 31
+  min. A fair test needs patience scaled
+  to the epoch length.
+\end{itemize}
+
+\subsubsection{3.5 Training
+infrastructure (no effect on results, by
+design)}\label{training-infrastructure-no-effect-on-results-by-design}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Early stopping on held-out
+  (\#15):} after each epoch,
+  \texttt{scripts/train\_solver.py}
+  scores the held-out split with the
+  official objective; \texttt{fit} keeps
+  the best epoch\textquotesingle s
+  weights and stops after
+  \texttt{patience} epochs without
+  improvement (5; 8 for cosine runs).
+  Caveat for teaching: picking the best
+  epoch on held-out makes the reported
+  held-out score slightly optimistic (a
+  mild selection bias); comparisons
+  between runs remain fair because every
+  run gets it.
+\item
+  \textbf{Window cache (\#14,
+  \texttt{scripts/cache\_windows.py},
+  \texttt{-\/-cache}):} windows
+  extracted once to memory-mapped
+  \texttt{.npy} files (24 GB). Verified
+  to give bit-identical windows, scores
+  and training batches, with
+  \textasciitilde4× faster loading and
+  much less memory.
+\item
+  \textbf{Checkpoints and
+  \texttt{-\/-resume}:} \texttt{fit}
+  saves its full state (model,
+  optimiser, scheduler, temperature,
+  best epoch, history, RNG states) after
+  every epoch; a resumed run on CPU ends
+  with bit-identical weights.
+  \texttt{make\ pause-training} /
+  \texttt{resume-training} freeze and
+  continue a run (used when the
+  laptop\textquotesingle s GPU is needed
+  for the screen).
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{4. Evaluation in
+detail}\label{evaluation-in-detail}
+
+\subsubsection{4.1 The official
+objective}\label{the-official-objective}
+
+\texttt{external/2026-competition/tracks/image\_decoding/objective.py},
+\texttt{Objective.evaluate\_result}:
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=9mm, sibling sep=6mm, nodes={box}, edges={semithick}] {
+  L [as={Test loader: (X, y, info) batches}];
+  P [as={pred = model.predict(X) \\ one 1536-d vector per window}];
+  Y [as={y = target embedding of the image shown}];
+  G [as={Gallery = np.unique(y): the distinct images \\ (200 for THINGS-EEG2 test)}];
+  S1 [as={Pooled: cosine(pred, gallery) per window}];
+  GM [as={group\_means over (subject, image): \\ average a subject's predictions for the same image}];
+  S2 [as={Subject-aggregated: cosine(mean pred, gallery) \\ 2,000 queries = 10 subjects × 200 images}];
+  K1 [as={top5\_acc, top1\_acc}];
+  K2 [as={top5\_acc\_subject\_agg, top1\_acc\_subject\_agg}];
+  L ->[] P;
+  L ->[] Y;
+  Y ->[] G;
+  P ->[] S1;
+  P ->[] GM;
+  GM ->[] S2;
+  S1 ->[] K1;
+  S2 ->[] K2;
+  G ->[] S1;
+  G ->[] S2;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Gallery:} the unique target
+  embeddings of the split, found with
+  \texttt{np.unique(y\_true,\ axis=0)}.
+  Repeated presentations of an image
+  share an identical embedding, so they
+  collapse to one candidate.
+\item
+  \textbf{Scores:} predictions and
+  candidates are L2-normalised; the
+  score is the dot product (cosine
+  similarity).
+\item
+  \textbf{Top-k accuracy}
+  (\texttt{benchmark\_utils/metrics.py},
+  \texttt{topk\_accuracy}): a query is a
+  hit if its true
+  image\textquotesingle s rank is below
+  k. Ties share their average rank.
+  \textbf{Chance level}: 5/200 =
+  \textbf{2.5\%} for top-5, 0.5\% for
+  top-1.
+\item
+  \textbf{Subject-aggregated}
+  (\texttt{group\_means}): average the
+  predictions of all windows with the
+  same (subject, image) key, then rank
+  those means. On the test set each
+  subject saw each image
+  \textasciitilde80 times, so this
+  averages \textasciitilde80 predictions
+  per query: it\textquotesingle s why
+  our top-5 is 0.74 subject-aggregated
+  but 0.31 pooled. The sealed phase
+  ranks on top-5 subject-aggregated; the
+  warm-up leaderboard\textquotesingle s
+  main column has matched our
+  subject-aggregated top-5 on every
+  upload. (The
+  objective\textquotesingle s docstring
+  says warm-up uses the pooled metric;
+  the leaderboard columns show both, and
+  README/RESULTS track
+  subject-aggregated. \textbf{Worth
+  confirming with the organisers.})
+\end{itemize}
+
+\subsubsection{4.2 Our held-out-concept
+split}\label{our-held-out-concept-split}
+
+\texttt{src/data/heldout.py} +
+\texttt{configs/heldout\_concepts.json}
+(seed 0, committed):
+
+\begin{itemize}
+\tightlist
+\item
+  200 of the 1,654 training
+  \textbf{concepts} are removed from
+  training entirely (no window of those
+  concepts is trained on), so the model
+  must generalise to unseen concepts,
+  like the test set.
+\item
+  One image per held-out concept (e.g.
+  \texttt{air\_conditioner\_06s}) forms
+  a \textbf{200-image gallery}, the same
+  size as the test gallery; its windows
+  (from NeuralBench\textquotesingle s
+  train and val splits) are the queries:
+  8,076 windows ≈ 200 images × 10
+  subjects × \textasciitilde4
+  repetitions.
+\item
+  Training then uses the remaining 1,454
+  concepts (587,574 windows with
+  \texttt{-\/-use-val}).
+\end{itemize}
+
+\textbf{Why the held-out score is lower
+than the test score for the same model:}
+the held-out images were shown only
+\textbf{\textasciitilde4 times} per
+subject (training-set protocol) while
+test images were shown
+\textbf{\textasciitilde80 times}.
+Subject aggregation averages
+\textasciitilde4 predictions instead of
+\textasciitilde80, so much less noise is
+removed. The ranking of models is what
+matters, and it has been consistent.
+
+\subsubsection{4.3 From held-out to the
+leaderboard
+(empirical)}\label{from-held-out-to-the-leaderboard-empirical}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2826}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2391}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3478}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1304}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Run
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Held-out top-5 SA
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Test top-5 SA (same model)
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Gap
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+control (seed 1) & 0.4135 & 0.5450 &
++13.2 \\
+R2 learnable τ & 0.5175 & 0.6525 &
++13.5 \\
+R5 + val data & 0.5525 & 0.7110 &
++15.9 \\
+\end{longtable}
+}
+
+Then retraining the chosen recipe on
+\textbf{all} concepts with 3 seeds and
+ensembling added +2.7 on test (R5 0.7110
+→ 0.7380). So a held-out gain of x
+points has translated into roughly x
+points on the leaderboard.
+R6\textquotesingle s 0.590 suggests
+about \textbf{0.75--0.78} for its final
+ensemble \textbf{(a forecast, not a
+measurement)}.
+
+\textbf{Why local test = Codabench:}
+same data pipeline (NeuralBench pinned
+to the worker\textquotesingle s version,
+\texttt{neuralbench==0.4.0} etc.), same
+test split, same objective code,
+deterministic inference. All six uploads
+so far matched local scores to two
+decimals.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{5. Every experiment and its
+result}\label{every-experiment-and-its-result}
+
+Held-out = top-5 subject-aggregated on
+our held-out split (seed 1 unless
+noted). Test = top-5 subject-aggregated
+on THINGS-EEG2 test, computed locally.
+Codabench = leaderboard score. Sources:
+\texttt{RESULTS.md},
+\texttt{logs/overnight\_summary.md},
+\texttt{logs/round2.status},
+\texttt{logs/*.log},
+\texttt{submissions/*/run\_config.json}.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1287}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1637}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1813}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1404}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0936}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0526}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2398}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Run
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Hypothesis
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Change
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Held-out
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Test
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Codabench
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Conclusion
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+NeuralBench EEGNet, seed 34 & Official
+baseline as a floor & braindecode
+EEGNet, NeuralBench recipe & -- & 0.288
+& \textbf{0.29} & Starting point
+(submission 1001528) \\
+EEGNet ensemble 34+35 & Seed averaging
+helps & mean of 2
+models\textquotesingle{} normalised
+predictions & -- & 0.2975 & 0.30 & +1; 3
+seeds tied (0.2970) \\
+REVE frozen + ridge & A foundation
+model\textquotesingle s features suffice
+& official ridge probe on frozen REVE &
+-- & 0.025 & -- & Chance level \\
+REVE frozen + linear CLIP head & Same,
+with a contrastive head & linear head,
+CLIP loss & -- & 0.127 (120 Hz) / 0.086
+(200 Hz) & -- & Far below EEGNet;
+deprioritised \\
+Our encoder (unseeded) & Bigger model +
+higher lr + CLIP loss & §2.2 table, τ
+0.07, 20 epochs & 0.4215 & 0.5415 &
+\textbf{0.54} & +24 over baseline \\
+3-encoder ensemble & Seeds help & 3
+seeds & 0.4315 & 0.5530 & 0.55 & +1 \\
+Control (seed 1) & Reference for round 1
+& same, seed 1 & 0.4135 & 0.5450 & --
+& \\
+R1 dedup & False negatives hurt &
+\texttt{dedup=True} & 0.4120 & -- & -- &
+No gain (few duplicates per batch) \\
+\textbf{R2 learnable τ} & τ = 0.07 is
+too soft &
+\texttt{learn\_temperature=True} &
+\textbf{0.5175} & 0.6525 & \textbf{0.65}
+& \textbf{+10.4}: keep \\
+R3 τ + dedup + symmetric &
+CLIP\textquotesingle s symmetric loss
+helps & + \texttt{dedup},
+\texttt{symmetric} & 0.4985 & -- & -- &
+Worse than R2: drop \\
+R4 R3 + augmentation & Invariance to
+shifts/channels & ±50 ms circular shift,
+10\% channel dropout & 0.3680 & -- & --
+& Hurts a lot: drop \\
+\textbf{R5 R2 + val data} & More data
+helps & \texttt{-\/-use-val} (+25\%) &
+\textbf{0.5525} & 0.7110 & \textbf{0.71}
+& \textbf{+3.5}: keep \\
+\#23 recalibration & Post-hoc linear map
+fixes predictions & centering / ridge
+maps on R2\textquotesingle s outputs &
+0.376 / 0.046--0.052 (none: 0.5175) & --
+& -- & All hurt: closed \\
+\textbf{Final 3-seed ensemble} & All
+concepts + ensemble & R5 recipe on all
+668,400 windows, seeds 1--3 & n/a &
+\textbf{0.7380} (single seeds
+0.715--0.721) & \textbf{0.74} (top-1
+0.40) & Current best (submission
+1004941) \\
+\textbf{R6 40 epochs} & 20 epochs were
+too few & \texttt{n\_epochs=40}, early
+stopping & \textbf{0.590} (epoch 36) &
+not run & -- & \textbf{+3.75}: keep;
+still rising at 40 \\
+R15 floor 0.005 & τ is stuck at the 0.01
+floor & \texttt{min\_temperature=0.005}
+& 0.564 at epoch 31 (stopped at 32/40 by
+a restart) & -- & -- & Trailed R6
+throughout: no gain \\
+R7 avg 1--4 reps (random) & Cleaner
+training examples &
+\texttt{-\/-avg-reps\ 4\ -\/-avg-reps-random}
+& 0.555 (epoch 46, stopped at 51) & -- &
+-- & Cut short by patience (§3.4);
+faster per minute than R6; re-test with
+scaled patience \\
+R8 avg 2 reps & Same, fixed k = 2 &
+\texttt{-\/-avg-reps\ 2} & running at
+the time of writing (0.508 at epoch 28)
+& -- & -- & -- \\
+\end{longtable}
+}
+
+Top-1 subject-aggregated for the
+uploaded models: 0.09 (EEGNet) → 0.22 →
+0.34 (R2) → 0.37 (R5) → \textbf{0.40}
+(final ensemble).
+
+Queued (\texttt{logs/round2.status}):
+R9--R11 cosine schedule with batch 256 /
+512 / 1024 (\#18); R12--R14 wider
+convolutions / head 1024 + residual
+block / both (\#27).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{6. Submission and inference
+path}\label{submission-and-inference-path}
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=9mm, sibling sep=6mm, nodes={box}, edges={semithick}] {
+  T [as={train\_solver.py \\ load\_model (fresh init) → fit → save\_model}];
+  F [as={submissions/NAME/ \\ submission.py + weights.pt \\ (+ run\_config*.json)}];
+  Z [as={make zip-submission SUBMISSION=submissions/NAME \\ (run\_config* left out)}];
+  CB [as={Codabench: unzip read-only, \\ Solver.load\_model(meta), then predict(X) per batch}];
+  SC [as={objective.evaluate\_result → leaderboard}];
+  T ->[] F;
+  F ->[] Z;
+  Z ->[] CB;
+  CB ->[] SC;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Contract}
+  (\texttt{benchmark\_utils.base\_solver.CompetSolver}):
+  Codabench never trains. It calls
+  \texttt{Solver.load\_model(meta)} with
+  \texttt{n\_chans}, \texttt{n\_times},
+  \texttt{n\_outputs},
+  \texttt{ch\_names},
+  \texttt{chs\_info}, \texttt{device},
+  \texttt{submission\_dir}, and then
+  \texttt{model.predict(X)} on
+  \texttt{(B,\ C,\ T)} batches;
+  \texttt{predict} must return
+  \texttt{(B,\ n\_outputs)}.
+\item
+  \textbf{Inference vs training in
+  \texttt{load\_model}:} if
+  \texttt{train\_loader} is set (a local
+  training run) it builds a fresh,
+  seeded model; otherwise it loads the
+  shipped weights.
+\item
+  \textbf{Sizes from the weights
+  (\texttt{encoder\_sizes}, \#27):} the
+  number of filters, the head width and
+  the number of residual blocks are read
+  from the tensor shapes in the weights
+  file, so the uploaded
+  \texttt{submission.py} never needs
+  editing after a wider run.
+\item
+  \textbf{Ensembles
+  (\texttt{EmbeddingEnsemble}):} if the
+  folder contains \texttt{weights\_*.pt}
+  files, one model is built per file and
+  their (unit-length) predictions are
+  averaged.
+\item
+  \textbf{Run time on Codabench:}
+  226--318 s per upload so far (limit 60
+  min), e.g. 305 s for the 3-model
+  ensemble.
+\item
+  \textbf{Reproducibility:} each run
+  writes \texttt{run\_config.json}
+  (command, commit, settings, seed,
+  windows, minutes, best epoch) and
+  \texttt{run\_config\_curve.json}
+  (per-epoch loss, temperature, lr,
+  held-out), which the top-3 audit
+  needs.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{7. Paper map and
+bibliography}\label{paper-map-and-bibliography}
+
+\subsubsection{7.1 Idea → paper → where
+in our
+code}\label{idea-paper-where-in-our-code}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2658}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2911}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2278}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2152}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Idea in our code
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Paper
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+What to read
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Where it lives
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Temporal-then-spatial conv factorisation
+& Schirrmeister et al. 2017 &
+ShallowConvNet / DeepConvNet
+architecture figures and their FBCSP
+motivation &
+\texttt{EEGToImageEncoder.temporal\_conv},
+\texttt{.spatial\_conv} \\
+Compact EEG CNN: block order, ELU,
+pooling, dropout, separable conv &
+Lawhern et al. 2018 (EEGNet) &
+Architecture section and table of layers
+& \texttt{EEGToImageEncoder} (whole conv
+part) \\
+Depthwise-separable convolution &
+Chollet 2017 (Xception) & Section on
+depthwise-separable convs &
+\texttt{EEGToImageEncoder.sep\_conv} \\
+BatchNorm & Ioffe \& Szegedy 2015 & &
+every \texttt{BatchNorm*} \\
+ELU / GELU activations & Clevert et al.
+2016 / Hendrycks \& Gimpel 2016 & &
+\texttt{spatial\_conv},
+\texttt{sep\_conv} /
+\texttt{projection\_head} \\
+Dropout & Srivastava et al. 2014 & &
+\texttt{Dropout(dropout)} \\
+Contrastive loss with in-batch negatives
+& van den Oord et al. 2018 (InfoNCE);
+Radford et al. 2021 (CLIP) & CLIP §2.3
+and its Figure 3 pseudo-code &
+\texttt{clip\_loss} \\
+Learnable temperature, logit scale ≤ 100
+& Radford et al. 2021 (CLIP) & CLIP §2.5
+(training details) & \texttt{Solver.fit}
+(\texttt{log\_scale},
+\texttt{min\_temperature}) \\
+Symmetric loss & Radford et al. 2021 &
+Figure 3 &
+\texttt{clip\_loss(symmetric=True)} \\
+CLIP loss for brain signals, retrieval
+evaluation & Défossez et al. 2023;
+Benchetrit et al. 2024 & Methods (loss,
+retrieval metric) & \texttt{clip\_loss},
+objective \\
+Zero-shot EEG→image retrieval on
+THINGS-EEG2 & Song et al. 2024 (NICE);
+Li et al. 2024 (ATM) & Problem setup and
+results tables & whole project \\
+Residual projector + LayerNorm & Li et
+al. 2024 (ATM); NICE\textquotesingle s
+projector & Architecture section &
+\texttt{ResidualBlock},
+\texttt{head\_blocks} \\
+DINOv2-giant target embeddings & Oquab
+et al. 2023 (DINOv2) & Intro + feature
+quality sections & targets (NeuralBench,
+\texttt{facebook/dinov2-giant}) \\
+AdamW & Loshchilov \& Hutter 2019 & &
+\texttt{Solver.fit} optimiser \\
+Cosine schedule & Loshchilov \& Hutter
+2017 (SGDR) & &
+\texttt{Solver.\_lr\_factor} \\
+Warm-up, lr scaling with batch size &
+Goyal et al. 2017 & §2.1--2.2 &
+\texttt{\_lr\_factor}, R10/R11 \\
+Repetition averaging / data protocol &
+Gifford et al. 2022 (THINGS-EEG2) &
+Paradigm and preprocessing &
+\texttt{src/data/repetitions.py} \\
+Concepts and images & Hebart et al. 2019
+(THINGS) & &
+\texttt{configs/heldout\_concepts.json} \\
+Blurred-image targets (issue \#26) & UBP
+(CVPR 2025) & & not implemented yet \\
+Position-based spatial attention,
+spatial dropout & Défossez et al. 2023 &
+"Spatial attention" layer in Methods
+(Fourier embedding of sensor positions)
+& \texttt{SpatialAttention},
+\texttt{Solver.virtual\_channels}
+(§9.2) \\
+Electrode positions (10-05 system) &
+Oostenveld \& Praamstra 2001
+\textbf{(unverified)};
+MNE\textquotesingle s
+\texttt{standard\_1005} montage & &
+\texttt{ELECTRODE\_XY},
+\texttt{channel\_positions} \\
+Held-out participants (cross-subject
+validation) & standard practice;
+motivated by the sealed
+final\textquotesingle s unseen subjects
+& & \texttt{heldout\_subjects\_split}
+(§9.1) \\
+EEG foundation model (tried, weak) & El
+Ouahidi et al. 2025 (REVE) & &
+\texttt{logs/reve*} \\
+Final-phase data family & Xu et al. 2024
+(Alljoined1); Xu et al. 2025
+(Alljoined-1.6M) & Dataset papers &
+issues \#4, \#21 \\
+A convolution + transformer EEG encoder
+(candidate for \#12) & Song et al. 2023
+(EEG Conformer) & Architecture figure &
+not implemented \\
+\end{longtable}
+}
+
+\subsubsection{7.2
+Bibliography}\label{bibliography}
+
+Verification: "verified" means the
+citation was checked against metadata
+shipped in our installed packages
+(braindecode, NeuralFetch, PyTorch,
+transformers). Web search was not
+available while writing this, so the
+others are from memory and marked
+\textbf{(unverified)}.
+
+\textbf{Datasets}
+
+\begin{itemize}
+\tightlist
+\item
+  Gifford, A. T., Dwivedi, K., Roig, G.,
+  \& Cichy, R. M. (2022). A large and
+  rich EEG dataset for modeling human
+  visual object recognition.
+  \emph{NeuroImage}.
+  \url{doi:10.1016/j.neuroimage.2022.119754}
+  --- verified (NeuralFetch
+  \texttt{gifford2022large}). Data:
+  osf.io/3jk45.
+\item
+  Hebart, M. N., et al. (2019). THINGS:
+  A database of 1,854 object concepts
+  and more than 26,000 naturalistic
+  object images. \emph{PLoS ONE} 14(10):
+  e0223792. \textbf{(unverified)}
+\item
+  Xu, J., Aristimunha, B., Feucht, M.
+  E., Qian, E., et al. (2024). Alljoined
+  --- A dataset for EEG-to-Image
+  decoding. arXiv:2404.05553 ---
+  verified (NeuralFetch
+  \texttt{xu2024alljoined}; 8 subjects).
+\item
+  Xu, J., Nunes, U. B., Jiang, W.,
+  Ryther, S., Pringle, J., Scotti, P.
+  S., Delorme, A., \& Kneeland, R.
+  (2025). Alljoined-1.6M: A
+  million-trial EEG-image dataset for
+  evaluating affordable brain-computer
+  interfaces. arXiv:2508.18571 ---
+  verified (NeuralFetch
+  \texttt{xu2025alljoined}; 20 subjects,
+  Emotiv headset).
+\end{itemize}
+
+\textbf{EEG architectures}
+
+\begin{itemize}
+\tightlist
+\item
+  Lawhern, V. J., Solon, A. J.,
+  Waytowich, N. R., Gordon, S. M., Hung,
+  C. P., \& Lance, B. J. (2018). EEGNet:
+  a compact convolutional neural network
+  for EEG-based brain--computer
+  interfaces. \emph{Journal of Neural
+  Engineering} 15(5), 056013.
+  arXiv:1611.08024 --- verified
+  (braindecode).
+\item
+  Schirrmeister, R. T., Springenberg, J.
+  T., Fiederer, L. D. J., Glasstetter,
+  M., Eggensperger, K., Tangermann, M.,
+  Hutter, F., \& Ball, T. (2017). Deep
+  learning with convolutional neural
+  networks for EEG decoding and
+  visualization. \emph{Human Brain
+  Mapping}. \url{doi:10.1002/hbm.23730}
+  --- verified (braindecode).
+\item
+  Song, Y., Zheng, Q., Liu, B., \& Gao,
+  X. (2023). EEG Conformer:
+  Convolutional transformer for EEG
+  decoding and visualization. \emph{IEEE
+  Transactions on Neural Systems and
+  Rehabilitation Engineering} 31,
+  710--719 --- verified (braindecode;
+  braindecode dates it 2022, the journal
+  volume is 2023).
+\item
+  Chollet, F. (2017). Xception: Deep
+  learning with depthwise separable
+  convolutions. \emph{CVPR} --- verified
+  (cited in
+  braindecode\textquotesingle s EEGNet).
+\item
+  El Ouahidi, Y., Lys, J., Thölke, P.,
+  Farrugia, N., Pasdeloup, B., Gripon,
+  V., Jerbi, K., \& Lioi, G. (2025).
+  REVE: A foundation model for EEG ---
+  adapting to any setup with large-scale
+  pretraining on 25,000 subjects.
+  \emph{NeurIPS 2025}.
+  openreview.net/forum?id=ZeFMtRBy4Z ---
+  verified (braindecode).
+\end{itemize}
+
+\textbf{EEG/MEG → image decoding}
+
+\begin{itemize}
+\tightlist
+\item
+  Song, Y., Liu, B., Li, X., Shi, N.,
+  Wang, Y., \& Gao, X. (2024). Decoding
+  natural images from EEG for object
+  recognition (NICE). \emph{ICLR 2024}.
+  arXiv:2308.13234 \textbf{(unverified)}
+\item
+  Li, D., Wei, C., Li, S., Zou, J., \&
+  Liu, Q. (2024). Visual decoding and
+  reconstruction via EEG embeddings with
+  guided diffusion (ATM). \emph{NeurIPS
+  2024}. arXiv:2403.07721
+  \textbf{(unverified)}
+\item
+  "Bridging the vision-brain gap with an
+  uncertainty-aware blur prior" (UBP).
+  \emph{CVPR 2025}. \textbf{(unverified:
+  authors and arXiv ID; search the
+  title)}
+\item
+  Benchetrit, Y., Banville, H., \& King,
+  J.-R. (2024). Brain decoding: toward
+  real-time reconstruction of visual
+  perception. \emph{ICLR 2024}.
+  arXiv:2310.19812 \textbf{(unverified)}
+\item
+  Défossez, A., Caucheteux, C., Rapin,
+  J., Kabeli, O., \& King, J.-R. (2023).
+  Decoding speech perception from
+  non-invasive brain recordings.
+  \emph{Nature Machine Intelligence}
+  5(10), 1097--1107 --- verified
+  (braindecode REVE references).
+  arXiv:2208.12266 \textbf{(ID
+  unverified)}
+\end{itemize}
+
+\textbf{Representation learning and
+optimisation}
+
+\begin{itemize}
+\tightlist
+\item
+  Radford, A., et al. (2021). Learning
+  transferable visual models from
+  natural language supervision (CLIP).
+  \emph{ICML 2021}. arXiv:2103.00020
+  \textbf{(unverified)}
+\item
+  van den Oord, A., Li, Y., \& Vinyals,
+  O. (2018). Representation learning
+  with contrastive predictive coding.
+  arXiv:1807.03748 \textbf{(unverified)}
+\item
+  Oquab, M., et al. (2023). DINOv2:
+  Learning robust visual features
+  without supervision. arXiv:2304.07193
+  --- verified
+  (transformers\textquotesingle{} DINOv2
+  module).
+\item
+  Loshchilov, I., \& Hutter, F. (2019).
+  Decoupled weight decay regularization
+  (AdamW). \emph{ICLR 2019}.
+  arXiv:1711.05101 --- verified (PyTorch
+  \texttt{AdamW} docstring).
+\item
+  Loshchilov, I., \& Hutter, F. (2017).
+  SGDR: Stochastic gradient descent with
+  warm restarts. \emph{ICLR 2017}.
+  arXiv:1608.03983 --- verified (PyTorch
+  \texttt{lr\_scheduler}).
+\item
+  Goyal, P., et al. (2017). Accurate,
+  large minibatch SGD: Training ImageNet
+  in 1 hour. arXiv:1706.02677
+  \textbf{(unverified)}
+\item
+  Ioffe, S., \& Szegedy, C. (2015).
+  Batch normalization. \emph{ICML 2015}.
+  \textbf{(unverified)}
+\item
+  Clevert, D.-A., Unterthiner, T., \&
+  Hochreiter, S. (2016). Fast and
+  accurate deep network learning by
+  exponential linear units (ELUs).
+  \emph{ICLR 2016}.
+  \textbf{(unverified)}
+\item
+  Hendrycks, D., \& Gimpel, K. (2016).
+  Gaussian error linear units (GELUs).
+  arXiv. \textbf{(unverified)}
+\item
+  Srivastava, N., et al. (2014).
+  Dropout: A simple way to prevent
+  neural networks from overfitting.
+  \emph{JMLR}. \textbf{(unverified)}
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{8. Teaching
+kit}\label{teaching-kit}
+
+\subsubsection{8.1 A 60--90 minute
+session}\label{a-6090-minute-session}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.0706}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.5882}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3412}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Time
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Topic
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Show
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+0--10 min & The task and why
+it\textquotesingle s retrieval, not
+classification; chance level 2.5\% &
+how\_it\_works.md, first diagram \\
+10--20 & The data: THINGS-EEG2, windows,
+why repetitions matter (4 vs 80) &
+how\_it\_works.md §2; §4.2 here \\
+20--35 & The encoder, layer by layer:
+temporal → spatial → separable → head;
+receptive field & §1.1 diagram and §1.2
+table \\
+35--50 & The loss: the B×B matrix,
+negatives, temperature; why not
+regression & §3.1 formula;
+how\_it\_works.md loss diagram \\
+50--60 & Evaluation and the held-out
+split; why held-out \textless{} test &
+§4.1 diagram, §4.3 table \\
+60--75 & The experiment log: what worked
+(τ, data, epochs), what
+didn\textquotesingle t, and why & §5
+table \\
+75--90 & What\textquotesingle s next:
+final phase = 32 channels + unseen
+people; headset-independent spatial
+layer; held-out participants &
+how\_it\_works.md §8 \\
+\end{longtable}
+}
+
+Tip: before the session, run exercise 2
+so the scores appear live on screen.
+
+\subsubsection{8.2
+Check-your-understanding questions (with
+answers)}\label{check-your-understanding-questions-with-answers}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Why can the model recognise
+  images of concepts it never trained
+  on?} It predicts a point in
+  DINOv2\textquotesingle s embedding
+  space, not a class. DINOv2 places any
+  image, including unseen ones, in that
+  space, so retrieval works for new
+  images (zero-shot).
+\item
+  \textbf{What is chance-level top-5
+  accuracy on the test set?} 5/200 =
+  2.5\%.
+\item
+  \textbf{Why is subject-aggregated
+  accuracy (0.74) so much higher than
+  pooled (0.31)?} It averages
+  \textasciitilde80 predictions per
+  (subject, image) before ranking, which
+  cancels most of the single-trial
+  noise.
+\item
+  \textbf{What does the temporal
+  convolution learn, in
+  signal-processing terms?} 32 FIR
+  filters of 258 ms shared across
+  electrodes: band-pass filters or
+  response-shape detectors.
+\item
+  \textbf{Why does the model have to be
+  retrained for the 32-channel final
+  phase?} The spatial
+  conv\textquotesingle s kernel spans
+  exactly 63 electrodes in a fixed
+  order; its weights have no meaning for
+  a different montage.
+\item
+  \textbf{Where are 90\% of the
+  parameters?} In the projection head
+  (896 → 512 → 1536).
+\item
+  \textbf{Write the InfoNCE loss for one
+  row and say what the negatives are.}
+  \(-\log \frac{e^{s_{ii}/\tau}}{\sum_j e^{s_{ij}/\tau}}\);
+  the negatives are the other images in
+  the same batch.
+\item
+  \textbf{What does lowering the
+  temperature do?} Sharpens the softmax
+  so the loss focuses on the hardest
+  wrong images. Learning it gave +10
+  held-out; going below 0.01 gave
+  nothing.
+\item
+  \textbf{Why did \texttt{dedup} make no
+  difference?} Same-image duplicates are
+  rare in a batch of 256 (about 2
+  pairs), so there were few false
+  negatives to remove.
+\item
+  \textbf{Give one plausible reason
+  augmentation by time shift hurt.} The
+  flattened readout relies on absolute
+  timing of responses; shifting by up to
+  ±50 ms (with wrap-around) corrupts
+  that.
+\item
+  \textbf{Why is the held-out score
+  lower than the test score for the same
+  model?} Held-out images were seen
+  \textasciitilde4 times per subject,
+  test images \textasciitilde80, so
+  subject aggregation removes less noise
+  on held-out.
+\item
+  \textbf{Why don\textquotesingle t we
+  choose models by their test score?}
+  The test set is the public leaderboard
+  data; selecting on it overfits to it
+  and tells us nothing about the sealed
+  phase. We select on the held-out
+  split.
+\item
+  \textbf{Why do we retrain on all
+  concepts for uploads?} More concepts
+  cover DINOv2\textquotesingle s space
+  better; it added \textasciitilde+2.7
+  on test together with the 3-seed
+  ensemble.
+\item
+  \textbf{Why was R7 (repetition
+  averaging) not a fair loss?} Its
+  epochs are 4× shorter, so patience 5
+  stopped it while it was still
+  improving.
+\item
+  \textbf{What does
+  \texttt{encoder\_sizes} solve?} It
+  reads the layer sizes from the
+  weights, so the same
+  \texttt{submission.py} can load a
+  model of any width without edits.
+\end{enumerate}
+
+\subsubsection{8.3 Hands-on
+exercises}\label{hands-on-exercises}
+
+\textbf{Exercise 1: count the parameters
+and check the shapes (CPU, 1 minute).}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# save as count\_params.py at the repo root, run: .venv/bin/python count\_params.py}
+\ImportTok{import}\NormalTok{ importlib.util, sys, torch}
+\NormalTok{sys.path.insert(}\DecValTok{0}\NormalTok{, }\StringTok{"external/2026{-}competition/tracks/image\_decoding"}\NormalTok{)}
+\NormalTok{spec }\OperatorTok{=}\NormalTok{ importlib.util.spec\_from\_file\_location(}\StringTok{"s"}\NormalTok{, }\StringTok{"submission/submission.py"}\NormalTok{)}
+\NormalTok{m }\OperatorTok{=}\NormalTok{ importlib.util.module\_from\_spec(spec)}\OperatorTok{;}\NormalTok{ spec.loader.exec\_module(m)}
+\NormalTok{enc }\OperatorTok{=}\NormalTok{ m.EEGToImageEncoder(n\_chans}\OperatorTok{=}\DecValTok{63}\NormalTok{, n\_times}\OperatorTok{=}\DecValTok{120}\NormalTok{, output\_dim}\OperatorTok{=}\DecValTok{1536}\NormalTok{).}\BuiltInTok{eval}\NormalTok{()}
+\NormalTok{x }\OperatorTok{=}\NormalTok{ torch.zeros(}\DecValTok{2}\NormalTok{, }\DecValTok{1}\NormalTok{, }\DecValTok{63}\NormalTok{, }\DecValTok{120}\NormalTok{)}
+\ControlFlowTok{for}\NormalTok{ block }\KeywordTok{in}\NormalTok{ (enc.temporal\_conv, enc.spatial\_conv, enc.sep\_conv):}
+    \ControlFlowTok{for}\NormalTok{ layer }\KeywordTok{in}\NormalTok{ block:}
+\NormalTok{        y }\OperatorTok{=}\NormalTok{ layer(x)}
+        \BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"}\SpecialCharTok{\{}\BuiltInTok{str}\NormalTok{(layer)[:}\DecValTok{60}\NormalTok{]}\SpecialCharTok{:60s\}}\SpecialStringTok{ }\SpecialCharTok{\{}\BuiltInTok{tuple}\NormalTok{(x.shape)}\SpecialCharTok{\}}\SpecialStringTok{ {-}\textgreater{} }\SpecialCharTok{\{}\BuiltInTok{tuple}\NormalTok{(y.shape)}\SpecialCharTok{\}}\SpecialStringTok{ "}
+              \SpecialStringTok{f"}\SpecialCharTok{\{}\BuiltInTok{sum}\NormalTok{(p.numel() }\ControlFlowTok{for}\NormalTok{ p }\KeywordTok{in}\NormalTok{ layer.parameters())}\SpecialCharTok{\}}\SpecialStringTok{"}\NormalTok{)}
+\NormalTok{        x }\OperatorTok{=}\NormalTok{ y}
+\BuiltInTok{print}\NormalTok{(}\StringTok{"total:"}\NormalTok{, }\BuiltInTok{sum}\NormalTok{(p.numel() }\ControlFlowTok{for}\NormalTok{ p }\KeywordTok{in}\NormalTok{ enc.parameters()))  }\CommentTok{\# 1,387,872}
+\end{Highlighting}
+\end{Shaded}
+
+Questions: where do 129,024 parameters
+come from? (32 × 63 × 64.) What changes
+with
+\texttt{EEGToImageEncoder(32,\ 120,\ 1536)},
+the final phase\textquotesingle s
+channel count?
+
+\textbf{Exercise 2: score an existing
+model like Codabench does (≈1 min with
+the cache).}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ExtensionTok{python}\NormalTok{ scripts/eval\_local.py submissions/e6\_r5\_learntemp\_useval }\AttributeTok{{-}{-}cache}\NormalTok{ cache/windows/things\_eeg2}
+\CommentTok{\# expect 0.7110 / 0.3745 / 0.2824 / 0.0958 (R5, Codabench 0.71)}
+\ExtensionTok{python}\NormalTok{ scripts/eval\_local.py submissions/e6\_r5\_learntemp\_useval }\AttributeTok{{-}{-}split}\NormalTok{ heldout }\AttributeTok{{-}{-}cache}\NormalTok{ cache/windows/things\_eeg2}
+\CommentTok{\# expect 0.5525 held{-}out top{-}5 subject{-}aggregated}
+\end{Highlighting}
+\end{Shaded}
+
+Questions: why is the second number
+lower? Which column is the leaderboard
+metric?
+
+\textbf{Exercise 3: plot learning curves
+(CPU, 2 minutes).}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# save as plot\_curves.py, run: .venv/bin/python plot\_curves.py}
+\ImportTok{import}\NormalTok{ json, matplotlib.pyplot }\ImportTok{as}\NormalTok{ plt}
+\NormalTok{fig, (a, b) }\OperatorTok{=}\NormalTok{ plt.subplots(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{, figsize}\OperatorTok{=}\NormalTok{(}\DecValTok{10}\NormalTok{, }\DecValTok{4}\NormalTok{))}
+\ControlFlowTok{for}\NormalTok{ run }\KeywordTok{in}\NormalTok{ [}\StringTok{"m2\_r6\_epochs40"}\NormalTok{, }\StringTok{"m2\_r7\_avgreps4rand"}\NormalTok{]:}
+\NormalTok{    curve }\OperatorTok{=}\NormalTok{ json.load(}\BuiltInTok{open}\NormalTok{(}\SpecialStringTok{f"submissions/}\SpecialCharTok{\{}\NormalTok{run}\SpecialCharTok{\}}\SpecialStringTok{/run\_config\_curve.json"}\NormalTok{))}
+\NormalTok{    ep }\OperatorTok{=}\NormalTok{ [r[}\StringTok{"epoch"}\NormalTok{] }\ControlFlowTok{for}\NormalTok{ r }\KeywordTok{in}\NormalTok{ curve]}
+\NormalTok{    a.plot(ep, [r[}\StringTok{"heldout"}\NormalTok{] }\ControlFlowTok{for}\NormalTok{ r }\KeywordTok{in}\NormalTok{ curve], label}\OperatorTok{=}\NormalTok{run)}
+\NormalTok{    b.plot(ep, [r[}\StringTok{"temperature"}\NormalTok{] }\ControlFlowTok{for}\NormalTok{ r }\KeywordTok{in}\NormalTok{ curve], label}\OperatorTok{=}\NormalTok{run)}
+\NormalTok{a.}\BuiltInTok{set}\NormalTok{(xlabel}\OperatorTok{=}\StringTok{"epoch"}\NormalTok{, ylabel}\OperatorTok{=}\StringTok{"held{-}out top{-}5 (subject{-}agg)"}\NormalTok{)}\OperatorTok{;}\NormalTok{ b.}\BuiltInTok{set}\NormalTok{(xlabel}\OperatorTok{=}\StringTok{"epoch"}\NormalTok{, ylabel}\OperatorTok{=}\StringTok{"temperature"}\NormalTok{, yscale}\OperatorTok{=}\StringTok{"log"}\NormalTok{)}
+\NormalTok{a.legend()}\OperatorTok{;}\NormalTok{ plt.tight\_layout()}\OperatorTok{;}\NormalTok{ plt.savefig(}\StringTok{"curves.png"}\NormalTok{)}\OperatorTok{;} \BuiltInTok{print}\NormalTok{(}\StringTok{"wrote curves.png"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Questions: when does the temperature
+reach its 0.01 floor? Re-plot with the
+x-axis in training samples (epochs ×
+587,574 for R6, × 145,400 for R7): which
+run learns faster per sample?
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{9. Next: new people and new
+headsets (in
+progress)}\label{next-new-people-and-new-headsets-in-progress}
+
+Everything above was tuned on
+THINGS-EEG2, where the test participants
+are the \textbf{same 10 people} the
+model trained on, recorded with
+\textbf{63 channels}. The sealed final
+is different: \textbf{11 new people, a
+32-channel Emotiv headset, new images.}
+Two pieces of code (commits
+\texttt{25b12fb} and \texttt{d3ed4ea},
+Oct 20) prepare for that. Neither has
+been trained at scale yet.
+
+\subsubsection{9.1 Measuring what the
+final measures: held-out
+participants}\label{measuring-what-the-final-measures-held-out-participants}
+
+Our held-out split (§4.2) holds out
+\emph{concepts} but not \emph{people},
+so it can\textquotesingle t tell us how
+well a model works on someone it has
+never seen, which is notoriously the
+hard part of EEG (skull thickness,
+cortical folding and cap placement
+differ between people).
+
+\texttt{train\_solver.py\ -\/-holdout-subjects}
+/
+\texttt{eval\_local.py\ -\/-split\ heldout\_subjects}
+(\texttt{heldout\_subjects\_split} in
+\texttt{src/data/heldout.py}):
+
+\begin{itemize}
+\tightlist
+\item
+  the 200 held-out concepts are removed
+  from training, as before;
+\item
+  \textbf{participants 6 and 7}
+  (\texttt{configs/heldout\_subjects.json},
+  random with seed 0) are removed
+  entirely: training uses 8 people;
+\item
+  the score is computed on those 2
+  people\textquotesingle s windows of
+  the held-out concepts. Each held-out
+  concept has 10 images, so there are
+  \textbf{10 galleries of 200 images}
+  (gallery \emph{g} = the \emph{g}-th
+  image of every concept), each scored
+  with the official metric, then
+  averaged.
+\end{itemize}
+
+Why 10 galleries: one gallery with 2
+people gives only 400 subject-aggregated
+queries of \textasciitilde4 repetitions
+each (standard error ≈ 2.5 points, too
+noisy to judge 1--2-point changes). Ten
+galleries give 16,174 windows,
+\textasciitilde4,000 queries, and a
+measured standard error of \textbf{≈ 0.8
+points} (\texttt{eval\_local} prints it
+as
+\texttt{top5\_acc\_subject\_agg\_se}).
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.1828}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3226}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4946}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Model
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Trained on participants 6 and 7?
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Held-out-participants score (top-5 SA)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+R6 & yes (reference, not a real held-out
+score) & 0.6352 ± 0.0077 \\
+any \texttt{-\/-holdout-subjects} run &
+no & to be measured: the drop from 0.635
+is the cost of unseen people \\
+\end{longtable}
+}
+
+\subsubsection{9.2 One model for any
+headset: spatial
+attention}\label{one-model-for-any-headset-spatial-attention}
+
+Our \texttt{spatial\_conv} (§1.3) is a
+convolution with kernel height = number
+of channels, in a fixed order. Its
+weights only make sense for
+THINGS-EEG2\textquotesingle s 63
+channels, so a THINGS-EEG2 model
+can\textquotesingle t read
+Emotiv\textquotesingle s 32 channels,
+and the two datasets
+can\textquotesingle t be trained
+together without remapping.
+
+Défossez et al. (2023) solved this for
+MEG with a \textbf{spatial attention}
+layer, which we adapt
+(\texttt{SpatialAttention}, enabled with
+\texttt{-\/-set\ virtual\_channels=64}):
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=9mm, sibling sep=6mm, nodes={box}, edges={semithick}] {
+  N [as={Channel names \\ (meta['ch\_names'])}];
+  P [as={2D scalp position of each electrode \\ (standard 10-05 table, ELECTRODE\_XY)}];
+  F [as={Fourier features of the position \\ cos/sin(2π(kx·x + ky·y)), 16×16 frequencies \\ → 512 numbers per electrode}];
+  S [as={Score of electrode c for virtual channel j \\ = learned weights\_j · features\_c}];
+  SM [as={softmax over electrodes \\ (unknown names masked out; \\ training: drop electrodes near a random point)}];
+  X [as={EEG (B, C, 120) \\ C = 63 or 32}];
+  M [as={Each virtual channel = weighted \\ average of the electrodes}];
+  V [as={(B, 64, 120): same shape for any headset}];
+  E [as={the existing encoder \\ (temporal conv → spatial conv → …)}];
+  N ->[] P;
+  P ->[] F;
+  F ->[] S;
+  S ->[] SM;
+  X ->[] M;
+  SM ->[] M;
+  M ->[] V;
+  V ->[] E;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Why it\textquotesingle s
+  montage-independent:} the learned
+  parameters (\texttt{heads}, 64 × 512 ≈
+  33k numbers) define a smooth
+  \emph{function of scalp position}, not
+  one weight per channel. A new headset
+  just evaluates that function at its
+  own electrode positions.
+\item
+  \textbf{Positions:} the pipeline only
+  passes electrode \emph{names}, and
+  Codabench\textquotesingle s worker
+  only has \texttt{torch}, so
+  \texttt{submission.py} embeds a table
+  of 343 standard 10-05 positions,
+  generated once from
+  MNE\textquotesingle s
+  \texttt{standard\_1005} montage
+  (sphere-fitted, then flattened by an
+  azimuthal-equidistant projection from
+  the top of the head, like a
+  topographic map), at a fixed scale, so
+  63- and 32-channel headsets share one
+  coordinate frame.
+\item
+  \textbf{Spatial dropout}
+  (\texttt{spatial\_dropout=0.15}):
+  during training, every electrode
+  within that radius of a random scalp
+  point is ignored, so the model learns
+  not to depend on any one region, which
+  is useful when the
+  final\textquotesingle s headset lacks
+  some of THINGS-EEG2\textquotesingle s
+  electrodes.
+\item
+  \textbf{Checked} (synthetic data):
+  with \texttt{virtual\_channels=0} (the
+  default) training is bit-identical to
+  before; a model trained on 63 channels
+  reloads to identical predictions and
+  runs on a 32-channel Emotiv montage
+  with the same weights. Positions are
+  per-montage buffers, not saved in
+  \texttt{weights.pt}.
+\end{itemize}
+
+\subsubsection{9.3 The
+plan}\label{the-plan}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Train the R6 recipe with
+  \texttt{-\/-holdout-subjects} (the
+  unseen-people baseline).
+\item
+  Same with
+  \texttt{-\/-set\ virtual\_channels=64\ spatial\_dropout=0.15}:
+  does spatial attention cost anything
+  on THINGS-EEG2, and does it help on
+  unseen people?
+\item
+  Then joint training on THINGS-EEG2 +
+  Alljoined (issue \#21), possible only
+  with step 2\textquotesingle s layer,
+  validated on
+  Alljoined\textquotesingle s held-out
+  participants (issue \#4).
+\end{enumerate}
+
+\end{document}
