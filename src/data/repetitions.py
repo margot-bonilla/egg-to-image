@@ -16,6 +16,8 @@ from torch.utils.data import ConcatDataset, Dataset, Subset
 def dataset_fields(dataset, keys=("subject", "stem")) -> list[dict]:
     """Trigger-event fields of every item of a (nested Subset/ConcatDataset of) competition
     window dataset(s) (``benchmark_utils.nb_task._NBWindows``), in dataset order."""
+    if hasattr(dataset, "fields"):  # src.data.window_cache.CachedWindows
+        return dataset.fields(keys)
     if isinstance(dataset, ConcatDataset):
         return [f for d in dataset.datasets for f in dataset_fields(d, keys)]
     if isinstance(dataset, Subset):

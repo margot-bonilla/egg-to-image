@@ -50,6 +50,8 @@ def main():
     parser.add_argument("--split", default="test", choices=["test", "heldout"],
                         help="test = the warm-up evaluation set; heldout = 200 held-out training "
                              "concepts (configs/heldout_concepts.json), for model selection")
+    parser.add_argument("--cache", type=Path, default=None, metavar="DIR",
+                        help="read windows from a scripts/cache_windows.py cache (#14)")
     args = parser.parse_args()
 
     sys.path.insert(0, str(TRACK))
@@ -70,6 +72,12 @@ def main():
     )
     n_outputs = int(meta.pop("target_shape")[-1])
     meta.pop("raw_target_shape", None)
+
+    if args.cache:
+        from src.data.window_cache import cached_loaders
+
+        splits = ("train", "val") if args.split == "heldout" else ("test",)
+        loaders = cached_loaders(loaders, args.cache, device, args.batch_size, splits=splits)
 
     objective = load_module("objective", TRACK / "objective.py").Objective.get_instance()
     if args.split == "heldout":

@@ -19,6 +19,8 @@ from pathlib import Path
 import numpy as np
 from torch.utils.data import ConcatDataset, DataLoader, Subset
 
+from src.data.window_cache import CachedLoader, CachedWindows, _batch
+
 REPO = Path(__file__).resolve().parents[2]
 HELDOUT_FILE = REPO / "configs" / "heldout_concepts.json"
 
@@ -47,6 +49,8 @@ def window_triggers(loader, keys=("category", "stem")) -> list[dict]:
     event for each of the ~500k windows.
     """
     ds = loader.dataset
+    if hasattr(ds, "fields"):  # src.data.window_cache.CachedWindows
+        return ds.fields(keys)
     segments = ds.seg_ds.segments
     return [{k: segments[int(i)].trigger.extra[k] for k in keys} for i in ds.index]
 
@@ -65,10 +69,21 @@ def make_heldout_file(train_loader, n_concepts: int = 200, seed: int = 0) -> dic
     return heldout
 
 
+def _subset(dataset, indices):
+    return dataset.take(indices) if isinstance(dataset, CachedWindows) else Subset(dataset, indices)
+
+
 def _loader(datasets: list, device: str, shuffle: bool, batch_size: int, num_workers: int) -> _OnDevice:
-    dataset = datasets[0] if len(datasets) == 1 else ConcatDataset(datasets)
+    cached = all(isinstance(d, CachedWindows) for d in datasets)
+    if len(datasets) == 1:
+        dataset = datasets[0]
+    else:
+        dataset = CachedWindows.concat(datasets) if cached else ConcatDataset(datasets)
+    if cached and num_workers == 0:  # memory-mapped batched reads in the main process
+        return _OnDevice(CachedLoader(dataset, shuffle=shuffle, batch_size=batch_size, collate_fn=_batch), device)
+    # Cached workers share the memory-mapped files (no copy of the dataset per worker).
     return _OnDevice(DataLoader(dataset, shuffle=shuffle, batch_size=batch_size, num_workers=num_workers,
-                                persistent_workers=num_workers > 0), device)
+                                persistent_workers=num_workers > 0, collate_fn=_batch if cached else None), device)
 
 
 def heldout_split(loaders: dict, device: str, batch_size: int | None = None, num_workers: int = 0,
@@ -88,8 +103,8 @@ def heldout_split(loaders: dict, device: str, batch_size: int | None = None, num
         trig = window_triggers(loaders[split])
         if split == "train" or include_val:
             idx = [i for i, t in enumerate(trig) if t["category"] not in concepts]
-            train_parts.append(Subset(loaders[split].dataset, idx))
-        heldout_parts.append(Subset(loaders[split].dataset, [i for i, t in enumerate(trig) if t["stem"] in gallery]))
+            train_parts.append(_subset(loaders[split].dataset, idx))
+        heldout_parts.append(_subset(loaders[split].dataset, [i for i, t in enumerate(trig) if t["stem"] in gallery]))
 
     bs = batch_size or loaders["train"].batch_size
     return {

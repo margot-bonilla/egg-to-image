@@ -46,7 +46,11 @@ def main():
     parser.add_argument("--seed", type=int, default=None, help="sets Solver.seed, if the solver has one")
     parser.add_argument("--set", nargs="*", default=[], metavar="NAME=VALUE",
                         help="override Solver class attributes, e.g. --set dedup=True n_epochs=30")
-    parser.add_argument("--num-workers", type=int, default=8, help="data-loading processes (0 = in-process)")
+    parser.add_argument("--num-workers", type=int, default=None,
+                        help="data-loading processes (0 = in-process; default 8, or 4 with --cache)")
+    parser.add_argument("--cache", type=Path, default=None, metavar="DIR",
+                        help="read windows from a scripts/cache_windows.py cache (#14): ~4x faster loading, "
+                             "and workers share the memory-mapped files instead of each loading the dataset")
     parser.add_argument("--holdout", action="store_true",
                         help="train without the 200 held-out concepts (configs/heldout_concepts.json), "
                              "so the model can be selected with eval_local.py --split heldout")
@@ -60,6 +64,8 @@ def main():
                         help="also train on NeuralBench's val split (+25%% data on THINGS-EEG2; with --holdout, "
                              "minus the held-out concepts)")
     args = parser.parse_args()
+    if args.num_workers is None:
+        args.num_workers = 4 if args.cache else 8
     if args.out.exists() and any(args.out.iterdir()):
         raise SystemExit(f"{args.out} is not empty: pick a new folder (load_model would reuse its weights)")
 
@@ -79,6 +85,11 @@ def main():
         },
     )
     sys.path.insert(0, str(REPO))
+    if args.cache:
+        from src.data.window_cache import cached_loaders
+
+        loaders = cached_loaders(loaders, args.cache, device, args.batch_size, splits=("train", "val"),
+                                 num_workers=args.num_workers)
     heldout_loader = None
     if args.holdout:
         from src.data.heldout import heldout_split
@@ -153,7 +164,7 @@ def main():
         "command": "python " + " ".join(sys.argv),
         "commit": commit + ("+uncommitted-changes" if dirty else ""),
         "solver": str(args.solver), "holdout": args.holdout, "use_val": args.use_val, "dataset": args.dataset,
-        "batch_size": args.batch_size, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
+        "batch_size": args.batch_size, "cache": str(args.cache) if args.cache else None, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
         **_curve_summary(getattr(solver, "history", None)),
