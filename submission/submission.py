@@ -148,6 +148,24 @@ def augment(x, max_shift=0, channel_dropout=0.0):
     return x
 
 
+def _get_rng_state(device):
+    """CPU and accelerator RNG states (shuffling uses the CPU one, dropout the device's)."""
+    state = {"cpu": torch.get_rng_state()}
+    if device.type == "mps":
+        state["mps"] = torch.mps.get_rng_state()
+    elif device.type == "cuda":
+        state["cuda"] = torch.cuda.get_rng_state(device)
+    return state
+
+
+def _set_rng_state(state, device):
+    torch.set_rng_state(state["cpu"].cpu())
+    if "mps" in state:
+        torch.mps.set_rng_state(state["mps"].cpu())
+    elif "cuda" in state:
+        torch.cuda.set_rng_state(state["cuda"].cpu(), device)
+
+
 class EmbeddingEnsemble:
     """Mean of the members' L2-normalized embeddings (one member per shipped weights_*.pt)."""
 
@@ -189,6 +207,9 @@ class Solver(CompetSolver):
     # epoch_callback(model, epoch, train_loss, temperature) -> held-out score (higher is
     # better); fit then keeps the best epoch and stops early. Never set on Codabench.
     epoch_callback = None
+    # Optional path set by scripts/train_solver.py: fit saves its full state there after every
+    # epoch and, if the file exists when fit starts, resumes from it (after a crash or restart).
+    checkpoint = None
 
     def load_model(self, meta: dict):
         """
@@ -241,7 +262,20 @@ class Solver(CompetSolver):
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, self._lr_factor(len(train_loader)))
         best_score, best_state, bad = -math.inf, None, 0
         self.history = []
-        for epoch in range(self.n_epochs):
+        start, done = 0, False
+        if self.checkpoint is not None and Path(self.checkpoint).exists():
+            state = torch.load(self.checkpoint, map_location=device, weights_only=True)
+            model.load_state_dict(state["model"])
+            optimizer.load_state_dict(state["optimizer"])
+            scheduler.load_state_dict(state["scheduler"])
+            with torch.no_grad():
+                log_scale.copy_(state["log_scale"])
+            best_score, best_state, bad = state["best_score"], state["best_state"], state["bad"]
+            self.history, start, done = state["history"], state["epoch"], state["done"]
+            _set_rng_state(state["rng"], device)
+            self.resumed_from = start
+            print(f"Resumed from {self.checkpoint} after epoch {start}", flush=True)
+        for epoch in range(start, 0 if done else self.n_epochs):
             model.train()
             total, n_batches = 0.0, 0
             for X, y, _info in train_loader:
@@ -270,7 +304,16 @@ class Solver(CompetSolver):
             self.history.append(record)
             print(" ".join(f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}" for k, v in record.items()),
                   flush=True)
-            if self.epoch_callback is not None and bad >= self.patience:
+            stop = self.epoch_callback is not None and bad >= self.patience
+            if self.checkpoint is not None:
+                tmp = Path(f"{self.checkpoint}.tmp")
+                torch.save({"model": model.state_dict(), "optimizer": optimizer.state_dict(),
+                            "scheduler": scheduler.state_dict(), "log_scale": log_scale.detach(),
+                            "best_score": best_score, "best_state": best_state, "bad": bad,
+                            "history": self.history, "epoch": epoch + 1, "done": stop,
+                            "rng": _get_rng_state(device)}, tmp)
+                tmp.replace(self.checkpoint)  # atomic: a crash mid-save keeps the previous checkpoint
+            if stop:
                 break
         if best_state is not None:
             model.load_state_dict(best_state)

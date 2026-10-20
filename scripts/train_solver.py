@@ -54,6 +54,9 @@ def main():
     parser.add_argument("--holdout", action="store_true",
                         help="train without the 200 held-out concepts (configs/heldout_concepts.json), "
                              "so the model can be selected with eval_local.py --split heldout")
+    parser.add_argument("--resume", action="store_true",
+                        help="continue an interrupted run from OUT_FOLDER/checkpoint.pt (saved after every epoch); "
+                             "starts from scratch if there is none, and skips a run that already finished")
     parser.add_argument("--no-early-stopping", action="store_true",
                         help="with --holdout, don't score the held-out split each epoch (fixed n_epochs)")
     parser.add_argument("--avg-reps", type=int, default=0, metavar="K",
@@ -66,8 +69,14 @@ def main():
     args = parser.parse_args()
     if args.num_workers is None:
         args.num_workers = 4 if args.cache else 8
-    if args.out.exists() and any(args.out.iterdir()):
-        raise SystemExit(f"{args.out} is not empty: pick a new folder (load_model would reuse its weights)")
+    checkpoint = args.out / "checkpoint.pt"
+    if args.resume and (args.out / "run_config.json").exists():
+        print(f"{args.out} already holds a finished run: nothing to resume")
+        return
+    leftovers = {p.name for p in args.out.iterdir()} - {"checkpoint.pt", "checkpoint.pt.tmp"} if args.out.exists() else set()
+    if leftovers or (checkpoint.exists() and not args.resume):
+        raise SystemExit(f"{args.out} is not empty: pick a new folder (load_model would reuse its weights)"
+                         + ("" if leftovers else ", or pass --resume to continue the interrupted run"))
 
     sys.path.insert(0, str(TRACK))
     from benchmark_utils.nb_task import load_task
@@ -123,6 +132,8 @@ def main():
     solver.device = device
     if args.seed is not None:
         solver.seed = args.seed
+    if hasattr(solver, "checkpoint"):
+        solver.checkpoint = checkpoint
     overrides = {}
     for item in args.set:
         name, _, value = item.partition("=")
@@ -167,10 +178,12 @@ def main():
         "batch_size": args.batch_size, "cache": str(args.cache) if args.cache else None, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
+        "resumed_after_epoch": getattr(solver, "resumed_from", None),  # fit_minutes then counts from there
         **_curve_summary(getattr(solver, "history", None)),
     }, indent=2))
     if getattr(solver, "history", None):
         (args.out / "run_config_curve.json").write_text(json.dumps(solver.history, indent=1))
+    checkpoint.unlink(missing_ok=True)  # never part of a submission ZIP
     print(f"Submission ready in {args.out}: {sorted(p.name for p in args.out.iterdir())}")
 
 
