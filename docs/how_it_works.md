@@ -1,7 +1,9 @@
 # How it works: EEG-to-image decoding, end to end
 
 A guided tour of what this repo does and why, written for someone who wants to understand it
-deeply. Read it top to bottom once; the diagrams are a map you can come back to.
+deeply. Read it top to bottom once; the diagrams are a map you can come back to. For the
+layer-by-layer details, the full experiment log and the paper map, see
+[architecture_deep_dive.md](architecture_deep_dive.md).
 
 ---
 
@@ -142,8 +144,9 @@ Benchetrit et al. (2024) at Meta, and by NICE / ATM on THINGS-EEG2.
 **The temperature τ** controls how sharp the softmax is. Small τ means the loss focuses on
 the hardest wrong images (the ones that look most like the right one). CLIP *learns* τ, with
 a floor at 0.01. Learning it instead of fixing it at 0.07 was our biggest single gain
-(**+10 points** held-out). In R6, τ fell to the 0.01 floor by epoch 15, which is why R15 tests
-a lower floor (`min_temperature=0.005`).
+(**+10 points** held-out). In R6, τ fell to the 0.01 floor by epoch 15, so R15 tried a lower
+floor (`min_temperature=0.005`): τ went lower, but the held-out score didn't improve, so the
+floor stays at 0.01.
 
 **Batch size matters** because the other 255 items are the "wrong answers": more negatives
 make a harder, more informative task. That's one of the #18 experiments (batch 512 / 1024).
@@ -218,10 +221,12 @@ flowchart LR
     TEST --> ZIP
 ```
 
-**Why retrain on all concepts?** More concepts mean better coverage of DINOv2's space. Our
-held-out-to-final gap has been consistent: roughly +16 points from single held-out model to
-3-seed all-concept ensemble on test. That's how we forecast: 0.59 held-out (R6) should land
-around **0.77** as a final ensemble.
+**Why retrain on all concepts?** More concepts mean better coverage of DINOv2's space. The
+gaps have been consistent: the same model scores 13–16 points higher on test than on
+held-out (held-out images were shown ~4 times per participant, test images ~80, so
+subject aggregation removes more noise on test), and the all-concept 3-seed ensemble added
+about +3 more (R5: 0.5525 held-out → 0.711 test → 0.738 final). That's how we forecast:
+0.59 held-out (R6) should land around **0.75–0.78** as a final ensemble.
 
 **Why ensembles help:** different seeds make different errors; averaging their (unit-length)
 predictions cancels part of the error. That's the same repetition logic again, applied to
@@ -250,10 +255,12 @@ weights themselves, so the same `submission.py` works for any encoder width or e
 | Oct 19 | **Learnable temperature** | 0.5175 | 0.65 |
 | Oct 19 | **+25% data** (NeuralBench's val split) | 0.5525 | 0.71 |
 | Oct 20 | Final: all concepts, 3-seed ensemble | – | **0.74** (top-1 0.40) |
-| Oct 20 | R6: 40 epochs instead of 20 | **0.590** | (forecast ≈ 0.77) |
+| Oct 20 | R6: 40 epochs instead of 20 | **0.590** | (forecast 0.75–0.78) |
+| Oct 20 | R15: temperature floor 0.005 | 0.564 (stopped at epoch 32) | no gain |
+| Oct 20 | R7: average 1–4 repetitions | 0.555 (cut short by early stopping) | to re-test |
 
-Queued (`logs/round2.status`): R15 temperature floor, R7/R8 repetition averaging (#17),
-R9–R11 cosine schedule and larger batches (#18), R12–R14 wider encoder (#27).
+Queued (`logs/round2.status`): R8 repetition averaging (#17), R9–R11 cosine schedule and
+larger batches (#18), R12–R14 wider encoder (#27).
 
 ### The big caveat for the final phase
 
@@ -287,7 +294,10 @@ held-out participants).
 
 ## 10. Reading list
 
-Titles and arXiv numbers are from memory; search the title if a link doesn't resolve.
+The full, checked bibliography (with which references were verified) is in
+[architecture_deep_dive.md §7](architecture_deep_dive.md#7-paper-map-and-bibliography).
+The arXiv numbers for CLIP, NICE, ATM, Benchetrit et al. and the UBP details could not be
+verified offline; search the title if a link doesn't resolve.
 
 ### Start here: the core ideas (≈ 1 evening)
 1. **Lilian Weng, "Contrastive Representation Learning"** (blog, 2021). The clearest
@@ -301,7 +311,8 @@ Titles and arXiv numbers are from memory; search the title if a link doesn't res
 
 ### Our task specifically
 4. **Gifford et al., "A large and rich EEG dataset for modeling human visual object
-   recognition" (NeuroImage, 2022).** The THINGS-EEG2 dataset paper: paradigm, preprocessing.
+   recognition" (NeuroImage, 2022)**, doi:10.1016/j.neuroimage.2022.119754. The THINGS-EEG2
+   dataset paper: paradigm, preprocessing.
 5. **Hebart et al., "THINGS: A database of 1,854 object concepts and more than 26,000
    naturalistic object images" (PLoS ONE, 2019).**
 6. **Li et al., "Visual Decoding and Reconstruction via EEG Embeddings with Guided
@@ -310,8 +321,10 @@ Titles and arXiv numbers are from memory; search the title if a link doesn't res
 7. **"Bridging the Vision-Brain Gap with an Uncertainty-Aware Blur Prior" (UBP, CVPR 2025).**
    Among the best published THINGS-EEG2 results, and the source of issue #26's blurred-image
    targets.
-8. **The Alljoined papers (Xu et al.)**: Alljoined1 (2024) and Alljoined-1.6M. The final
-   phase's data family; read before M4.
+8. **The Alljoined papers (Xu et al.)**: "Alljoined — A dataset for EEG-to-Image decoding"
+   (2024, arXiv:2404.05553) and "Alljoined-1.6M: A Million-Trial EEG-Image Dataset for
+   Evaluating Affordable Brain-Computer Interfaces" (2025, arXiv:2508.18571, Emotiv
+   headset). The final phase's data family; read before M4.
 
 ### Brain decoding at Meta (same recipe, other modalities)
 9. **Défossez et al., "Decoding speech perception from non-invasive brain recordings"
