@@ -1,0 +1,14 @@
+{
+  "command": "python scripts/train_solver.py submission/submission.py submissions/final_learntemp_s1 --use-val --seed 1 --set learn_temperature=True",
+  "commit": "5b4e22825130828dcef5d3a7703c052ca0ac50a9",
+  "solver": "submission/submission.py",
+  "holdout": false,
+  "use_val": true,
+  "dataset": null,
+  "seed": 1,
+  "overrides": {
+    "learn_temperature": true
+  },
+  "train_windows": 668400,
+  "fit_minutes": 57.0
+}
