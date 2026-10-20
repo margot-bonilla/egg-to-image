@@ -139,6 +139,11 @@ class Solver(CompetSolver):
     symmetric = False
     max_shift = 0  # samples (120 Hz)
     channel_dropout = 0.0
+    patience = 5  # epochs without held-out improvement, when an epoch_callback is set
+    # Optional hook set by scripts/train_solver.py --holdout: called after each epoch as
+    # epoch_callback(model, epoch, train_loss, temperature) -> held-out score (higher is
+    # better); fit then keeps the best epoch and stops early. Never set on Codabench.
+    epoch_callback = None
 
     def load_model(self, meta: dict):
         """
@@ -182,8 +187,11 @@ class Solver(CompetSolver):
                                        requires_grad=self.learn_temperature)
         params = list(model.parameters()) + ([log_scale] if self.learn_temperature else [])
         optimizer = torch.optim.AdamW(params, lr=self.lr, weight_decay=1e-4)
-        model.train()
-        for _ in range(self.n_epochs):
+        best_score, best_state, bad = -math.inf, None, 0
+        self.history = []
+        for epoch in range(self.n_epochs):
+            model.train()
+            total, n_batches = 0.0, 0
             for X, y, _info in train_loader:
                 if len(X) < 2:  # BatchNorm1d needs more than one sample per batch
                     continue
@@ -194,6 +202,24 @@ class Solver(CompetSolver):
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
+                total, n_batches = total + loss.item(), n_batches + 1
+            model.eval()
+            temperature = float(1 / log_scale.clamp(max=math.log(100)).exp())
+            record = {"epoch": epoch + 1, "train_loss": total / max(n_batches, 1), "temperature": temperature}
+            if self.epoch_callback is not None:
+                record["heldout"] = float(self.epoch_callback(model, epoch + 1, record["train_loss"], temperature))
+                if record["heldout"] > best_score:
+                    best_score, bad = record["heldout"], 0
+                    best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
+                else:
+                    bad += 1
+            self.history.append(record)
+            print(" ".join(f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}" for k, v in record.items()),
+                  flush=True)
+            if self.epoch_callback is not None and bad >= self.patience:
+                break
+        if best_state is not None:
+            model.load_state_dict(best_state)
         model.eval()
 
     def save_model(self, model, path):

@@ -26,6 +26,18 @@ REPO = Path(__file__).resolve().parent.parent
 TRACK = REPO / "external/2026-competition/tracks/image_decoding"
 
 
+def _curve_summary(history):
+    """Epochs run and, with held-out scoring, the best epoch and its score (for run_config.json)."""
+    if not history:
+        return {}
+    out = {"epochs_run": len(history)}
+    scored = [r for r in history if "heldout" in r]
+    if scored:
+        best = max(scored, key=lambda r: r["heldout"])
+        out.update(best_epoch=best["epoch"], best_heldout_top5_sa=round(best["heldout"], 4))
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("solver", type=Path, help="solver file defining class Solver(CompetSolver)")
@@ -39,6 +51,8 @@ def main():
     parser.add_argument("--holdout", action="store_true",
                         help="train without the 200 held-out concepts (configs/heldout_concepts.json), "
                              "so the model can be selected with eval_local.py --split heldout")
+    parser.add_argument("--no-early-stopping", action="store_true",
+                        help="with --holdout, don't score the held-out split each epoch (fixed n_epochs)")
     parser.add_argument("--use-val", action="store_true",
                         help="also train on NeuralBench's val split (+25%% data on THINGS-EEG2; with --holdout, "
                              "minus the held-out concepts)")
@@ -62,11 +76,12 @@ def main():
         },
     )
     sys.path.insert(0, str(REPO))
+    heldout_loader = None
     if args.holdout:
         from src.data.heldout import heldout_split
 
-        loaders["train"] = heldout_split(loaders, device, args.batch_size, args.num_workers,
-                                         include_val=args.use_val)["train"]
+        split = heldout_split(loaders, device, args.batch_size, args.num_workers, include_val=args.use_val)
+        loaders["train"], heldout_loader = split["train"], split["heldout"]
     elif args.use_val:
         from src.data.heldout import train_plus_val
 
@@ -95,6 +110,20 @@ def main():
             overrides[name] = value
         setattr(solver, name, overrides[name])
 
+    if heldout_loader is not None and hasattr(solver, "epoch_callback") and not args.no_early_stopping:
+        # Score the held-out split with the official objective after each epoch: the solver
+        # keeps the best epoch and stops early (patience). Only used for local training.
+        spec_obj = importlib.util.spec_from_file_location("objective", TRACK / "objective.py")
+        objective_module = importlib.util.module_from_spec(spec_obj)
+        spec_obj.loader.exec_module(objective_module)
+        objective = objective_module.Objective.get_instance()
+        objective.set_data(train_loader=None, test_loader=heldout_loader, **meta)
+
+        def heldout_score(model, epoch, train_loss, temperature):
+            return objective.evaluate_result(model)["top5_acc_subject_agg"]
+
+        solver.epoch_callback = heldout_score
+
     args.out.mkdir(parents=True, exist_ok=True)
     model = solver.load_model({**meta, "device": device, "submission_dir": args.out.resolve()})
     start = time.time()
@@ -113,7 +142,10 @@ def main():
         "solver": str(args.solver), "holdout": args.holdout, "use_val": args.use_val, "dataset": args.dataset,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
+        **_curve_summary(getattr(solver, "history", None)),
     }, indent=2))
+    if getattr(solver, "history", None):
+        (args.out / "run_config_curve.json").write_text(json.dumps(solver.history, indent=1))
     print(f"Submission ready in {args.out}: {sorted(p.name for p in args.out.iterdir())}")
 
 
