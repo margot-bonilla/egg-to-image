@@ -14,7 +14,6 @@ import ast
 import importlib.util
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -91,6 +90,7 @@ def main():
     print(f"Train split: {len(loaders['train'].dataset)} windows, "
           f"{meta['n_chans']} channels x {meta['n_times']} samples, device={device}", flush=True)
 
+    solver_source = args.solver.read_text()  # snapshot now: the file may be edited while we train
     spec = importlib.util.spec_from_file_location("solver", args.solver)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -130,7 +130,7 @@ def main():
     solver.fit(model, loaders["train"])
     print(f"fit done in {(time.time() - start) / 60:.1f} min", flush=True)
 
-    shutil.copyfile(args.solver, args.out / "submission.py")
+    (args.out / "submission.py").write_text(solver_source)
     solver.save_model(model, args.out.resolve())
     # Audit record (left out of the ZIP by `make zip-submission`, like other run_config* files).
     commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=REPO).stdout.strip()
