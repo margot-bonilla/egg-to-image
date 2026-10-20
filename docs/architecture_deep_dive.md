@@ -6,7 +6,7 @@ each idea to the paper it comes from.
 
 - Start with [how_it_works.md](how_it_works.md) for the overview (task, data, big picture).
   This document assumes it and goes deeper.
-- Code references are to commit `0e9ff1f` (2026-10-20) on branch `ws-m1-infra`. Function and
+- Code references are to commit `0e9ff1f` (2026-10-20) on branch `ws-m1-infra` (§9: `d3ed4ea`). Function and
   class names are stable; line numbers drift, so search for the name.
 - Every number below comes from a file in the repo (`RESULTS.md`, `logs/`, `submissions/*/run_config*.json`)
   or from a script run on the model. Anything that couldn't be checked is marked **(unverified)**.
@@ -20,6 +20,7 @@ Contents
 6. [Submission and inference path](#6-submission-and-inference-path)
 7. [Paper map and bibliography](#7-paper-map-and-bibliography)
 8. [Teaching kit](#8-teaching-kit)
+9. [Next: new people and new headsets (in progress)](#9-next-new-people-and-new-headsets-in-progress)
 
 ---
 
@@ -510,7 +511,9 @@ flowchart LR
 | Repetition averaging / data protocol | Gifford et al. 2022 (THINGS-EEG2) | Paradigm and preprocessing | `src/data/repetitions.py` |
 | Concepts and images | Hebart et al. 2019 (THINGS) | | `configs/heldout_concepts.json` |
 | Blurred-image targets (issue #26) | UBP (CVPR 2025) | | not implemented yet |
-| Position-based spatial attention (planned) | Défossez et al. 2023 | "Spatial attention" layer in Methods | planned (montage-independent model) |
+| Position-based spatial attention, spatial dropout | Défossez et al. 2023 | "Spatial attention" layer in Methods (Fourier embedding of sensor positions) | `SpatialAttention`, `Solver.virtual_channels` (§9.2) |
+| Electrode positions (10-05 system) | Oostenveld & Praamstra 2001 **(unverified)**; MNE's `standard_1005` montage | | `ELECTRODE_XY`, `channel_positions` |
+| Held-out participants (cross-subject validation) | standard practice; motivated by the sealed final's unseen subjects | | `heldout_subjects_split` (§9.1) |
 | EEG foundation model (tried, weak) | El Ouahidi et al. 2025 (REVE) | | `logs/reve*` |
 | Final-phase data family | Xu et al. 2024 (Alljoined1); Xu et al. 2025 (Alljoined-1.6M) | Dataset papers | issues #4, #21 |
 | A convolution + transformer EEG encoder (candidate for #12) | Song et al. 2023 (EEG Conformer) | Architecture figure | not implemented |
@@ -690,3 +693,82 @@ a.legend(); plt.tight_layout(); plt.savefig("curves.png"); print("wrote curves.p
 Questions: when does the temperature reach its 0.01 floor? Re-plot with the x-axis in
 training samples (epochs × 587,574 for R6, × 145,400 for R7): which run learns faster per
 sample?
+
+---
+
+## 9. Next: new people and new headsets (in progress)
+
+Everything above was tuned on THINGS-EEG2, where the test participants are the **same 10
+people** the model trained on, recorded with **63 channels**. The sealed final is different:
+**11 new people, a 32-channel Emotiv headset, new images.** Two pieces of code (commits
+`25b12fb` and `d3ed4ea`, Oct 20) prepare for that. Neither has been trained at scale yet.
+
+### 9.1 Measuring what the final measures: held-out participants
+
+Our held-out split (§4.2) holds out *concepts* but not *people*, so it can't tell us how well a
+model works on someone it has never seen, which is notoriously the hard part of EEG (skull
+thickness, cortical folding and cap placement differ between people).
+
+`train_solver.py --holdout-subjects` / `eval_local.py --split heldout_subjects`
+(`heldout_subjects_split` in `src/data/heldout.py`):
+
+- the 200 held-out concepts are removed from training, as before;
+- **participants 6 and 7** (`configs/heldout_subjects.json`, random with seed 0) are removed
+  entirely: training uses 8 people;
+- the score is computed on those 2 people's windows of the held-out concepts. Each held-out
+  concept has 10 images, so there are **10 galleries of 200 images** (gallery *g* = the *g*-th
+  image of every concept), each scored with the official metric, then averaged.
+
+Why 10 galleries: one gallery with 2 people gives only 400 subject-aggregated queries of ~4
+repetitions each (standard error ≈ 2.5 points, too noisy to judge 1–2-point changes). Ten
+galleries give 16,174 windows, ~4,000 queries, and a measured standard error of **≈ 0.8 points**
+(`eval_local` prints it as `top5_acc_subject_agg_se`).
+
+| Model | Trained on participants 6 and 7? | Held-out-participants score (top-5 SA) |
+|---|---|---|
+| R6 | yes (reference, not a real held-out score) | 0.6352 ± 0.0077 |
+| any `--holdout-subjects` run | no | to be measured: the drop from 0.635 is the cost of unseen people |
+
+### 9.2 One model for any headset: spatial attention
+
+Our `spatial_conv` (§1.3) is a convolution with kernel height = number of channels, in a fixed
+order. Its weights only make sense for THINGS-EEG2's 63 channels, so a THINGS-EEG2 model can't
+read Emotiv's 32 channels, and the two datasets can't be trained together without remapping.
+
+Défossez et al. (2023) solved this for MEG with a **spatial attention** layer, which we adapt
+(`SpatialAttention`, enabled with `--set virtual_channels=64`):
+
+```mermaid
+flowchart LR
+    N["Channel names<br/>(meta['ch_names'])"] --> P["2D scalp position of each electrode<br/>(standard 10-05 table, ELECTRODE_XY)"]
+    P --> F["Fourier features of the position<br/>cos/sin(2π(kx·x + ky·y)), 16×16 frequencies<br/>→ 512 numbers per electrode"]
+    F --> S["Score of electrode c for virtual channel j<br/>= learned weights_j · features_c"]
+    S --> SM["softmax over electrodes<br/>(unknown names masked out;<br/>training: drop electrodes near a random point)"]
+    X["EEG (B, C, 120)<br/>C = 63 or 32"] --> M["Each virtual channel = weighted<br/>average of the electrodes"]
+    SM --> M
+    M --> V["(B, 64, 120): same shape for any headset"] --> E["the existing encoder<br/>(temporal conv → spatial conv → …)"]
+```
+
+- **Why it's montage-independent:** the learned parameters (`heads`, 64 × 512 ≈ 33k numbers)
+  define a smooth *function of scalp position*, not one weight per channel. A new headset just
+  evaluates that function at its own electrode positions.
+- **Positions:** the pipeline only passes electrode *names*, and Codabench's worker only has
+  `torch`, so `submission.py` embeds a table of 343 standard 10-05 positions, generated once
+  from MNE's `standard_1005` montage (sphere-fitted, then flattened by an azimuthal-equidistant
+  projection from the top of the head, like a topographic map), at a fixed scale, so 63- and
+  32-channel headsets share one coordinate frame.
+- **Spatial dropout** (`spatial_dropout=0.15`): during training, every electrode within that
+  radius of a random scalp point is ignored, so the model learns not to depend on any one
+  region, which is useful when the final's headset lacks some of THINGS-EEG2's electrodes.
+- **Checked** (synthetic data): with `virtual_channels=0` (the default) training is bit-identical
+  to before; a model trained on 63 channels reloads to identical predictions and runs on a
+  32-channel Emotiv montage with the same weights. Positions are per-montage buffers, not saved
+  in `weights.pt`.
+
+### 9.3 The plan
+
+1. Train the R6 recipe with `--holdout-subjects` (the unseen-people baseline).
+2. Same with `--set virtual_channels=64 spatial_dropout=0.15`: does spatial attention cost
+   anything on THINGS-EEG2, and does it help on unseen people?
+3. Then joint training on THINGS-EEG2 + Alljoined (issue #21), possible only with step 2's layer,
+   validated on Alljoined's held-out participants (issue #4).
