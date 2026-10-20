@@ -131,7 +131,11 @@ class Solver(CompetSolver):
     # Local-training hyperparameters (only used by ``fit``). The defaults reproduce the
     # 0.54 run; scripts/train_solver.py --set name=value overrides them per experiment.
     n_epochs = 20
-    lr = 1e-3
+    lr = 1e-3  # scale it with train_solver.py --batch-size (default 256)
+    lr_schedule = "constant"  # or "cosine": per-step decay to 0 over n_epochs, after the warm-up
+    warmup_epochs = 0.0  # linear lr warm-up (fractions allowed), with either schedule
+    weight_decay = 1e-4
+    dropout = 0.25  # training only: inference runs in eval mode
     seed = 0
     temperature = 0.07
     learn_temperature = False
@@ -162,6 +166,7 @@ class Solver(CompetSolver):
                 n_chans=meta["n_chans"],
                 n_times=meta["n_times"],
                 output_dim=meta["n_outputs"],
+                dropout=self.dropout,
             ).to(device)
 
         # A local training run (train_loader set) starts from scratch; every
@@ -186,7 +191,8 @@ class Solver(CompetSolver):
         log_scale = torch.nn.Parameter(torch.tensor(math.log(1 / self.temperature), device=device),
                                        requires_grad=self.learn_temperature)
         params = list(model.parameters()) + ([log_scale] if self.learn_temperature else [])
-        optimizer = torch.optim.AdamW(params, lr=self.lr, weight_decay=1e-4)
+        optimizer = torch.optim.AdamW(params, lr=self.lr, weight_decay=self.weight_decay)
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, self._lr_factor(len(train_loader)))
         best_score, best_state, bad = -math.inf, None, 0
         self.history = []
         for epoch in range(self.n_epochs):
@@ -202,10 +208,12 @@ class Solver(CompetSolver):
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
+                scheduler.step()
                 total, n_batches = total + loss.item(), n_batches + 1
             model.eval()
             temperature = float(1 / log_scale.clamp(max=math.log(100)).exp())
-            record = {"epoch": epoch + 1, "train_loss": total / max(n_batches, 1), "temperature": temperature}
+            record = {"epoch": epoch + 1, "train_loss": total / max(n_batches, 1), "temperature": temperature,
+                      "lr": optimizer.param_groups[0]["lr"]}
             if self.epoch_callback is not None:
                 record["heldout"] = float(self.epoch_callback(model, epoch + 1, record["train_loss"], temperature))
                 if record["heldout"] > best_score:
@@ -221,6 +229,23 @@ class Solver(CompetSolver):
         if best_state is not None:
             model.load_state_dict(best_state)
         model.eval()
+
+    def _lr_factor(self, steps_per_epoch):
+        """lr multiplier per optimizer step: linear warm-up, then constant or cosine decay to 0."""
+        warmup = int(self.warmup_epochs * steps_per_epoch)
+        total = self.n_epochs * steps_per_epoch
+        if self.lr_schedule not in ("constant", "cosine"):
+            raise ValueError(f"lr_schedule must be 'constant' or 'cosine', not {self.lr_schedule!r}")
+
+        def factor(step):
+            if step < warmup:
+                return (step + 1) / warmup
+            if self.lr_schedule == "constant":
+                return 1.0
+            progress = min((step - warmup) / max(total - warmup, 1), 1.0)
+            return 0.5 * (1 + math.cos(math.pi * progress))
+
+        return factor
 
     def save_model(self, model, path):
         torch.save(model.state_dict(), Path(path) / "weights.pt")

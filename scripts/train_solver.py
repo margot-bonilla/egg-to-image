@@ -153,7 +153,7 @@ def main():
         "command": "python " + " ".join(sys.argv),
         "commit": commit + ("+uncommitted-changes" if dirty else ""),
         "solver": str(args.solver), "holdout": args.holdout, "use_val": args.use_val, "dataset": args.dataset,
-        "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
+        "batch_size": args.batch_size, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
         **_curve_summary(getattr(solver, "history", None)),
