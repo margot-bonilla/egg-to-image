@@ -57,6 +57,9 @@ def main():
     parser.add_argument("--resume", action="store_true",
                         help="continue an interrupted run from OUT_FOLDER/checkpoint.pt (saved after every epoch); "
                              "starts from scratch if there is none, and skips a run that already finished")
+    parser.add_argument("--holdout-subjects", action="store_true",
+                        help="--holdout plus 2 held-out participants (configs/heldout_subjects.json): select on "
+                             "unseen people and unseen concepts, like the sealed final (10 galleries, averaged)")
     parser.add_argument("--no-early-stopping", action="store_true",
                         help="with --holdout, don't score the held-out split each epoch (fixed n_epochs)")
     parser.add_argument("--avg-reps", type=int, default=0, metavar="K",
@@ -67,6 +70,7 @@ def main():
                         help="also train on NeuralBench's val split (+25%% data on THINGS-EEG2; with --holdout, "
                              "minus the held-out concepts)")
     args = parser.parse_args()
+    args.holdout = args.holdout or args.holdout_subjects
     if args.num_workers is None:
         args.num_workers = 4 if args.cache else 8
     checkpoint = args.out / "checkpoint.pt"
@@ -99,12 +103,17 @@ def main():
 
         loaders = cached_loaders(loaders, args.cache, device, args.batch_size, splits=("train", "val"),
                                  num_workers=args.num_workers)
-    heldout_loader = None
-    if args.holdout:
+    galleries = None  # held-out loaders, scored after each epoch (mean over galleries)
+    if args.holdout_subjects:
+        from src.data.heldout import heldout_subjects_split
+
+        split = heldout_subjects_split(loaders, device, args.batch_size, args.num_workers, include_val=args.use_val)
+        loaders["train"], galleries = split["train"], split["galleries"]
+    elif args.holdout:
         from src.data.heldout import heldout_split
 
         split = heldout_split(loaders, device, args.batch_size, args.num_workers, include_val=args.use_val)
-        loaders["train"], heldout_loader = split["train"], split["heldout"]
+        loaders["train"], galleries = split["train"], [split["heldout"]]
     elif args.use_val:
         from src.data.heldout import train_plus_val
 
@@ -145,17 +154,17 @@ def main():
             overrides[name] = value
         setattr(solver, name, overrides[name])
 
-    if heldout_loader is not None and hasattr(solver, "epoch_callback") and not args.no_early_stopping:
+    if galleries is not None and hasattr(solver, "epoch_callback") and not args.no_early_stopping:
         # Score the held-out split with the official objective after each epoch: the solver
         # keeps the best epoch and stops early (patience). Only used for local training.
         spec_obj = importlib.util.spec_from_file_location("objective", TRACK / "objective.py")
         objective_module = importlib.util.module_from_spec(spec_obj)
         spec_obj.loader.exec_module(objective_module)
         objective = objective_module.Objective.get_instance()
-        objective.set_data(train_loader=None, test_loader=heldout_loader, **meta)
+        from src.data.heldout import score_galleries
 
         def heldout_score(model, epoch, train_loss, temperature):
-            return objective.evaluate_result(model)["top5_acc_subject_agg"]
+            return score_galleries(objective, galleries, model, meta)["top5_acc_subject_agg"]
 
         solver.epoch_callback = heldout_score
 
@@ -174,7 +183,7 @@ def main():
     (args.out / "run_config.json").write_text(json.dumps({
         "command": "python " + " ".join(sys.argv),
         "commit": commit + ("+uncommitted-changes" if dirty else ""),
-        "solver": str(args.solver), "holdout": args.holdout, "use_val": args.use_val, "dataset": args.dataset,
+        "solver": str(args.solver), "holdout": args.holdout, "holdout_subjects": args.holdout_subjects, "use_val": args.use_val, "dataset": args.dataset,
         "batch_size": args.batch_size, "cache": str(args.cache) if args.cache else None, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),

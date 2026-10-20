@@ -47,9 +47,11 @@ def main():
     parser.add_argument("submissions", nargs="+", type=Path, help="folders with submission.py + weights")
     parser.add_argument("--dataset", default=None, help="image-task overlay, e.g. xu2025alljoined (default: THINGS-EEG2)")
     parser.add_argument("--batch-size", type=int, default=256)
-    parser.add_argument("--split", default="test", choices=["test", "heldout"],
+    parser.add_argument("--split", default="test", choices=["test", "heldout", "heldout_subjects"],
                         help="test = the warm-up evaluation set; heldout = 200 held-out training "
-                             "concepts (configs/heldout_concepts.json), for model selection")
+                             "concepts (configs/heldout_concepts.json), for model selection; "
+                             "heldout_subjects = those concepts for 2 held-out participants "
+                             "(configs/heldout_subjects.json), mean of 10 galleries")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR",
                         help="read windows from a scripts/cache_windows.py cache (#14)")
     args = parser.parse_args()
@@ -76,17 +78,21 @@ def main():
     if args.cache:
         from src.data.window_cache import cached_loaders
 
-        splits = ("train", "val") if args.split == "heldout" else ("test",)
+        splits = ("test",) if args.split == "test" else ("train", "val")
         loaders = cached_loaders(loaders, args.cache, device, args.batch_size, splits=splits)
 
     objective = load_module("objective", TRACK / "objective.py").Objective.get_instance()
-    if args.split == "heldout":
+    if args.split == "heldout_subjects":
+        from src.data.heldout import heldout_subjects_split
+
+        galleries = heldout_subjects_split(loaders, device, args.batch_size)["galleries"]
+    elif args.split == "heldout":
         from src.data.heldout import heldout_split
 
-        eval_loader = heldout_split(loaders, device, args.batch_size)["heldout"]
+        galleries = [heldout_split(loaders, device, args.batch_size)["heldout"]]
     else:
-        eval_loader = loaders["test"]
-    objective.set_data(train_loader=None, test_loader=eval_loader, n_outputs=n_outputs, **meta)
+        galleries = [loaders["test"]]
+    from src.data.heldout import score_galleries
 
     models = {}
     for i, folder in enumerate(args.submissions):
@@ -99,14 +105,17 @@ def main():
     if len(models) > 1:
         models[f"ensemble of {len(models)}"] = Ensemble(list(models.values()))
 
-    print(f"\n{args.split} split: {len(eval_loader.dataset)} windows, "
-          f"{meta['n_chans']} channels x {meta['n_times']} samples, device={device}\n")
+    n_windows = sum(len(g.dataset) for g in galleries)
+    print(f"\n{args.split} split: {n_windows} windows" + (f" in {len(galleries)} galleries (scores = mean)"
+                                                         if len(galleries) > 1 else "") +
+          f", {meta['n_chans']} channels x {meta['n_times']} samples, device={device}\n")
+    metrics = METRICS + (["top5_acc_subject_agg_se"] if len(galleries) > 1 else [])
     width = max(len(name) for name in models) + 2
-    print(f"{'model':<{width}}" + "".join(f"{m:>22}" for m in METRICS))
+    print(f"{'model':<{width}}" + "".join(f"{m:>26}" for m in metrics))
     for name, model in models.items():
-        result = objective.evaluate_result(model)
-        print(f"{name:<{width}}" + "".join(f"{result[m]:>22.4f}" if m != "n_candidates"
-                                          else f"{result[m]:>22d}" for m in METRICS), flush=True)
+        result = score_galleries(objective, galleries, model, {**meta, "n_outputs": n_outputs})
+        print(f"{name:<{width}}" + "".join(f"{result[m]:>26.4f}" if m != "n_candidates"
+                                          else f"{int(result[m]):>26d}" for m in metrics), flush=True)
 
 
 if __name__ == "__main__":
