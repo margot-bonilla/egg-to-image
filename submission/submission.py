@@ -22,8 +22,21 @@ import torch.nn.functional as F
 from benchmark_utils.base_solver import CompetSolver
 
 
+class ResidualBlock(nn.Module):
+    """x + Dropout(Linear(GELU(x))), as in ATM's projection head."""
+
+    def __init__(self, dim: int, dropout: float):
+        super().__init__()
+        self.linear = nn.Linear(dim, dim)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        return x + self.dropout(self.linear(F.gelu(x)))
+
+
 class EEGToImageEncoder(nn.Module):
-    """Self-contained model architecture (state_dict keys match src/models/eeg_encoder.py)."""
+    """Self-contained model architecture. With the default sizes the state_dict keys match
+    src/models/eeg_encoder.py; ``encoder_sizes`` reads the sizes back from a state_dict."""
 
     def __init__(
         self,
@@ -32,23 +45,28 @@ class EEGToImageEncoder(nn.Module):
         output_dim: int = 1536,
         hidden_dim: int = 512,
         dropout: float = 0.25,
+        temporal_filters: int = 32,
+        spatial_filters: int = 64,
+        sep_filters: int = 128,
+        head_blocks: int = 0,
     ):
         super().__init__()
         self.temporal_conv = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=(1, 31), stride=1, padding=(0, 15), bias=False),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(1, temporal_filters, kernel_size=(1, 31), stride=1, padding=(0, 15), bias=False),
+            nn.BatchNorm2d(temporal_filters),
         )
         self.spatial_conv = nn.Sequential(
-            nn.Conv2d(32, 64, kernel_size=(n_chans, 1), groups=1, bias=False),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(temporal_filters, spatial_filters, kernel_size=(n_chans, 1), groups=1, bias=False),
+            nn.BatchNorm2d(spatial_filters),
             nn.ELU(),
             nn.AvgPool2d(kernel_size=(1, 4), stride=(1, 4)),
             nn.Dropout(dropout),
         )
         self.sep_conv = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=(1, 15), padding=(0, 7), groups=64, bias=False),
-            nn.Conv2d(64, 128, kernel_size=(1, 1), bias=False),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(spatial_filters, spatial_filters, kernel_size=(1, 15), padding=(0, 7),
+                      groups=spatial_filters, bias=False),
+            nn.Conv2d(spatial_filters, sep_filters, kernel_size=(1, 1), bias=False),
+            nn.BatchNorm2d(sep_filters),
             nn.ELU(),
             nn.AvgPool2d(kernel_size=(1, 4), stride=(1, 4)),
             nn.Dropout(dropout),
@@ -66,6 +84,10 @@ class EEGToImageEncoder(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, output_dim),
         )
+        # Optional residual blocks on the output embedding (no parameters when head_blocks=0,
+        # so earlier weights files still load).
+        self.head_blocks = nn.Sequential(*[ResidualBlock(output_dim, dropout) for _ in range(head_blocks)])
+        self.head_norm = nn.LayerNorm(output_dim) if head_blocks else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.dim() == 3:
@@ -74,13 +96,25 @@ class EEGToImageEncoder(nn.Module):
         x = self.spatial_conv(x)
         x = self.sep_conv(x)
         x = torch.flatten(x, start_dim=1)
-        emb = self.projection_head(x)
+        emb = self.head_norm(self.head_blocks(self.projection_head(x)))
         return F.normalize(emb, p=2, dim=-1)
 
     @torch.inference_mode()
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         self.eval()
         return self.forward(x.float())
+
+
+def encoder_sizes(state_dict):
+    """EEGToImageEncoder size arguments read back from a saved state_dict, so the shipped
+    submission.py rebuilds whatever size was trained (its Solver settings may be the defaults)."""
+    return {
+        "temporal_filters": state_dict["temporal_conv.0.weight"].shape[0],
+        "spatial_filters": state_dict["spatial_conv.0.weight"].shape[0],
+        "sep_filters": state_dict["sep_conv.1.weight"].shape[0],
+        "hidden_dim": state_dict["projection_head.0.weight"].shape[0],
+        "head_blocks": sum(1 for k in state_dict if k.startswith("head_blocks.") and k.endswith(".linear.weight")),
+    }
 
 
 def clip_loss(pred, target, logit_scale, dedup=False, symmetric=False):
@@ -136,6 +170,12 @@ class Solver(CompetSolver):
     warmup_epochs = 0.0  # linear lr warm-up (fractions allowed), with either schedule
     weight_decay = 1e-4
     dropout = 0.25  # training only: inference runs in eval mode
+    # Encoder size for training (#27); inference reads the size from the weights instead.
+    temporal_filters = 32
+    spatial_filters = 64
+    sep_filters = 128
+    hidden_dim = 512
+    head_blocks = 0  # residual blocks + LayerNorm on the output embedding, as in ATM
     seed = 0
     temperature = 0.07
     learn_temperature = False
@@ -161,26 +201,30 @@ class Solver(CompetSolver):
         """
         device = meta["device"]
 
-        def build():
+        def build(**sizes):
             return EEGToImageEncoder(
                 n_chans=meta["n_chans"],
                 n_times=meta["n_times"],
                 output_dim=meta["n_outputs"],
                 dropout=self.dropout,
+                **sizes,
             ).to(device)
 
         # A local training run (train_loader set) starts from scratch; every
         # inference-only run, including Codabench's, must load the shipped weights.
         if getattr(self, "train_loader", None) is not None:
             torch.manual_seed(self.seed)  # reproducible weight init
-            return build().eval()
+            return build(temporal_filters=self.temporal_filters, spatial_filters=self.spatial_filters,
+                         sep_filters=self.sep_filters, hidden_dim=self.hidden_dim,
+                         head_blocks=self.head_blocks).eval()
 
         submission_dir = Path(meta["submission_dir"])
         paths = sorted(submission_dir.glob("weights_*.pt")) or [submission_dir / "weights.pt"]
         models = []
         for path in paths:
-            model = build()
-            model.load_state_dict(torch.load(path, map_location=device, weights_only=True))
+            state_dict = torch.load(path, map_location=device, weights_only=True)
+            model = build(**encoder_sizes(state_dict))
+            model.load_state_dict(state_dict)
             models.append(model.eval())
         return models[0] if len(models) == 1 else EmbeddingEnsemble(models)
 
