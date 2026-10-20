@@ -52,6 +52,10 @@ def main():
                              "so the model can be selected with eval_local.py --split heldout")
     parser.add_argument("--no-early-stopping", action="store_true",
                         help="with --holdout, don't score the held-out split each epoch (fixed n_epochs)")
+    parser.add_argument("--avg-reps", type=int, default=0, metavar="K",
+                        help="train on the mean of K repetitions of each (subject, image) (#17); 0 = off")
+    parser.add_argument("--avg-reps-random", action="store_true",
+                        help="with --avg-reps K, draw the number of repetitions uniformly in 1..K per item")
     parser.add_argument("--use-val", action="store_true",
                         help="also train on NeuralBench's val split (+25%% data on THINGS-EEG2; with --holdout, "
                              "minus the held-out concepts)")
@@ -85,6 +89,15 @@ def main():
         from src.data.heldout import train_plus_val
 
         loaders["train"] = train_plus_val(loaders, device, args.batch_size, args.num_workers)
+    if args.avg_reps:
+        from src.data.heldout import _loader
+        from src.data.repetitions import RepetitionAveraged
+
+        averaged = RepetitionAveraged(loaders["train"].dataset, k=args.avg_reps, random_k=args.avg_reps_random,
+                                      seed=args.seed or 0)
+        loaders["train"] = _loader([averaged], device, True, args.batch_size, args.num_workers)
+        print(f"Repetition averaging: {len(averaged)} (subject, image) groups, k={args.avg_reps}"
+              f"{' (random 1..k)' if args.avg_reps_random else ''}", flush=True)
     meta["n_outputs"] = int(meta.pop("target_shape")[-1])
     meta.pop("raw_target_shape", None)
     print(f"Train split: {len(loaders['train'].dataset)} windows, "
@@ -140,6 +153,7 @@ def main():
         "command": "python " + " ".join(sys.argv),
         "commit": commit + ("+uncommitted-changes" if dirty else ""),
         "solver": str(args.solver), "holdout": args.holdout, "use_val": args.use_val, "dataset": args.dataset,
+        "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
         **_curve_summary(getattr(solver, "history", None)),
