@@ -716,14 +716,53 @@ Participant-adversarial training & 0.190
 }
 
 \textbf{More participants is the biggest
-lever}, so next: joint training on
-THINGS-EEG2 + Alljoined (26 people,
-THINGS reduced to
-Alljoined\textquotesingle s 32
-channels), and transfer from
-\textbf{REVE}, an EEG model pretrained
-on many people (frozen, with an
-attention-pooling head). Details in
+lever within one dataset.} Two ways to
+get more people, tried on
+Alljoined\textquotesingle s unseen
+participants (A1, from scratch: ≈
+0.265--0.278):
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.0882}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.7353}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.1765}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Run
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Change
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Unseen-people score
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+A4 & joint training: +
+THINGS-EEG2\textquotesingle s 10
+participants (reduced to
+Alljoined\textquotesingle s 32 channels)
+& 0.241 \\
+A3 & frozen \textbf{REVE} (an EEG model
+pretrained on many people) +
+attention-pooling head & 0.245 \\
+\end{longtable}
+}
+
+Neither beats Alljoined alone yet.
+THINGS-EEG2 as-is differs too much
+(lab-grade cap vs Emotiv, amplitudes,
+200 vs 100 ms presentations); next:
+joint training with per-window
+normalisation, and two-stage training
+(both datasets, then Alljoined only).
+Frozen REVE with channel tokens does far
+better than averaged (0.13), but not
+better than our encoder; next: ensemble
+it with our encoder. Details in
 \href{architecture_deep_dive.pdf}{architecture\_deep\_dive.md}
 §9--§10.
 

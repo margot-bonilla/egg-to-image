@@ -847,7 +847,12 @@ seed per point).
   smoothed early stopping (§10.3).
 - **All 32 Alljoined channels exist in THINGS-EEG2's 63**, so THINGS-EEG2 can be reduced to the
   same montage: `--extra-cache cache/windows/things_eeg2` trains on Alljoined's 16 participants +
-  THINGS-EEG2's 10 (train + val only), 1,736,739 windows (A4).
+  THINGS-EEG2's 10 (train + val only), 1,736,739 windows.
+- **A4 (joint training, 26 participants): 0.2412** (best epoch 8 of 13), its whole curve 2–3
+  points below A1's. More people helped *within* THINGS-EEG2 (§10.1), but adding THINGS-EEG2
+  as-is to Alljoined doesn't: the setups differ (lab-grade 63-channel cap reduced to 32 vs Emotiv,
+  signal amplitudes, 200 vs 100 ms image presentations). Next: joint + `window_norm` (removes
+  amplitude differences), and two-stage training (both datasets, then Alljoined only).
 
 ### 10.3 New training options (all off by default; defaults train bit-identically)
 
@@ -872,12 +877,18 @@ montage). Frozen and **averaged over channels** (the official probe), it reached
   head with `Solver.fit` unchanged, `submission/reve_submission.py` is the Codabench solver (the
   worker image installs braindecode and stages `brain-bzh/reve-base`; only the head is shipped).
   The exported submission on raw windows matches the head on cached tokens (cosine 1.000000).
-- **Stage 2** (only if stage 1 is competitive): fine-tune REVE's top layers on cached
-  intermediate tokens. Full fine-tuning costs ~2 h per Alljoined epoch on the Mac: too slow.
+- **Result (A3, round 5): 0.245** on Alljoined's unseen participants (best epoch 9 of 14; caching
+  all 1.66M windows' tokens took 19 min, the head 18 min). Keeping the channel tokens is far
+  better than the official channel average (~0.13, on THINGS-EEG2), but still ~2 points below our
+  from-scratch encoder (A1 ≈ 0.265–0.278).
+- **Next:** ensemble A3 with A1 (different representations; both trained on the same 16 people).
+  **Stage 2** (fine-tune REVE's top layers on cached intermediate tokens) only if REVE adds
+  something there. Full fine-tuning costs ~2 h per Alljoined epoch on the Mac: too slow.
 
 ### 10.5 Where this leaves the final recipe
 
-In: per-window normalisation, wider convolutions (if the slowdown is affordable), more
-participants (joint THINGS-EEG2 + Alljoined), smoothed early stopping. Out: participant-adversarial
-training, augmentation. Open: spatial attention (only needed if the final's montage differs from
-Alljoined's), REVE (round 5), repetition averaging (re-test with smoothed early stopping).
+In: per-window normalisation (clear on THINGS-EEG2, to confirm on Alljoined), wider convolutions
+(if the slowdown is affordable), smoothed early stopping. Out: participant-adversarial training,
+augmentation, joint training as-is (A4). Open: joint training with `window_norm` or two-stage, a
+REVE + encoder ensemble, spatial attention (only needed if the final's montage differs from
+Alljoined's), repetition averaging (re-test with smoothed early stopping).

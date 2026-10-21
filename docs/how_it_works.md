@@ -289,10 +289,19 @@ What helps on unseen people (THINGS-EEG2, one change each from 0.233):
 | Participant-adversarial training | 0.190 (hurts) |
 | **Fewer training participants:** 2 / 4 / 6 / 8 | 0.161 / 0.183 / 0.187 / 0.233 |
 
-**More participants is the biggest lever**, so next: joint training on THINGS-EEG2 + Alljoined
-(26 people, THINGS reduced to Alljoined's 32 channels), and transfer from **REVE**, an EEG model
-pretrained on many people (frozen, with an attention-pooling head). Details in
-[architecture_deep_dive.md](architecture_deep_dive.md) §9–§10.
+**More participants is the biggest lever within one dataset.** Two ways to get more people,
+tried on Alljoined's unseen participants (A1, from scratch: ≈ 0.265–0.278):
+
+| Run | Change | Unseen-people score |
+|---|---|---|
+| A4 | joint training: + THINGS-EEG2's 10 participants (reduced to Alljoined's 32 channels) | 0.241 |
+| A3 | frozen **REVE** (an EEG model pretrained on many people) + attention-pooling head | 0.245 |
+
+Neither beats Alljoined alone yet. THINGS-EEG2 as-is differs too much (lab-grade cap vs Emotiv,
+amplitudes, 200 vs 100 ms presentations); next: joint training with per-window normalisation, and
+two-stage training (both datasets, then Alljoined only). Frozen REVE with channel tokens does far
+better than averaged (0.13), but not better than our encoder; next: ensemble it with our encoder.
+Details in [architecture_deep_dive.md](architecture_deep_dive.md) §9–§10.
 
 ---
 
