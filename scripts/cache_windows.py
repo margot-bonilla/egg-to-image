@@ -9,6 +9,7 @@ holds exactly what benchmark_utils.nb_task.load_task yields (float32 by default,
 if the data pipeline changes: both scripts check window counts and the first/last window.
 """
 import argparse
+import json
 import os
 import sys
 import time
@@ -16,6 +17,13 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 TRACK = REPO / "external/2026-competition/tracks/image_decoding"
+
+
+def write_meta(out: Path, meta: dict) -> None:
+    """Channel names etc. of the cached windows (train_solver --extra-cache maps channels by name)."""
+    (Path(out) / "meta.json").write_text(json.dumps({
+        "ch_names": [str(n) for n in meta["ch_names"]], "sfreq": meta["sfreq"], "n_chans": meta["n_chans"],
+        "n_times": meta["n_times"], "n_outputs": int(meta["target_shape"][-1])}, indent=1))
 
 
 def main():
@@ -34,7 +42,7 @@ def main():
     from src.data.window_cache import build_cache
 
     cache = str(REPO / "cache")
-    loaders, _meta = load_task(
+    loaders, meta = load_task(
         "eeg", "image", data_dir=REPO / "data", dataset=args.dataset, device="cpu", overrides={
             "study.source.infra.folder": cache,
             "neuro.infra.folder": cache,
@@ -45,6 +53,7 @@ def main():
     )
     start = time.time()
     build_cache(loaders, out, args.splits, args.dtype, args.num_workers)
+    write_meta(out, meta)
     print(f"Cache written to {out} in {(time.time() - start) / 60:.1f} min")
 
 

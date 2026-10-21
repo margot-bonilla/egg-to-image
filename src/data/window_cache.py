@@ -104,10 +104,15 @@ class CachedWindows(Dataset):
 
     Use ``loader(...)`` (or a DataLoader with ``collate_fn=_batch``): reads are batched.
     ``take(indices)`` / ``concat(parts)`` mirror ``Subset`` / ``ConcatDataset``.
+    channels: per split directory, the channel indices to keep (None = all), e.g. THINGS-EEG2's
+        63 channels reduced to Alljoined's 32, in Alljoined's order, to train on both datasets.
+    subject_offset: per split directory, added to info["subject_id"] (keeps datasets' ids apart).
     """
 
-    def __init__(self, split_dirs, index=None):
+    def __init__(self, split_dirs, index=None, channels=None, subject_offset=None):
         self.split_dirs = [Path(d) for d in split_dirs]
+        self.channels = list(channels) if channels is not None else [None] * len(self.split_dirs)
+        self.subject_offset = list(subject_offset) if subject_offset is not None else [0] * len(self.split_dirs)
         self._parts = None
         sizes = [int(np.load(d / "image.npy", mmap_mode="r").shape[0]) for d in self.split_dirs]
         self.offsets = np.cumsum([0] + sizes)
@@ -132,16 +137,19 @@ class CachedWindows(Dataset):
         return len(self.index)
 
     def take(self, indices) -> "CachedWindows":
-        return CachedWindows(self.split_dirs, self.index[np.asarray(indices, dtype=np.int64)])
+        return CachedWindows(self.split_dirs, self.index[np.asarray(indices, dtype=np.int64)], self.channels,
+                             self.subject_offset)
 
     @staticmethod
     def concat(parts) -> "CachedWindows":
-        dirs, index = [], []
+        dirs, index, channels, offsets = [], [], [], []
         for p in parts:
             shift = sum(int(np.load(d / "image.npy", mmap_mode="r").shape[0]) for d in dirs)
             dirs += p.split_dirs
+            channels += p.channels
+            offsets += p.subject_offset
             index.append(p.index + shift)
-        return CachedWindows(dirs, np.concatenate(index))
+        return CachedWindows(dirs, np.concatenate(index), channels, offsets)
 
     def fields(self, keys=FIELD_KEYS) -> list[dict]:
         """category / stem / subject of every window, in dataset order (like window_triggers)."""
@@ -165,6 +173,8 @@ class CachedWindows(Dataset):
             order = np.argsort(local)  # sorted reads from the memory map, then back to batch order
             Xp = np.empty((len(local), *part["X"].shape[1:]), dtype=np.float32)
             Xp[order] = part["X"][local[order]]
+            if self.channels[p] is not None:
+                Xp = Xp[:, self.channels[p]]
             yp = part["targets"][part["image"][local]]
             if X is None:
                 X = np.empty((n, *Xp.shape[1:]), dtype=np.float32)
@@ -172,7 +182,8 @@ class CachedWindows(Dataset):
             X[sel], y[sel] = Xp, yp
             for k in INFO_KEYS:
                 if k in part:
-                    info.setdefault(k, np.empty(n, dtype=part[k].dtype))[sel] = part[k][local]
+                    values = part[k][local] + (self.subject_offset[p] if k == "subject_id" else 0)
+                    info.setdefault(k, np.empty(n, dtype=part[k].dtype))[sel] = values
         return torch.from_numpy(X), torch.from_numpy(y), {k: torch.from_numpy(v) for k, v in info.items()}
 
     def __getitem__(self, i):

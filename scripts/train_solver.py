@@ -48,6 +48,10 @@ def main():
                         help="override Solver class attributes, e.g. --set dedup=True n_epochs=30")
     parser.add_argument("--num-workers", type=int, default=None,
                         help="data-loading processes (0 = in-process; default 8, or 4 with --cache)")
+    parser.add_argument("--extra-cache", type=Path, default=None, metavar="DIR",
+                        help="also train on another dataset's window cache (its train + val splits, all its "
+                             "participants), reduced to this dataset's channels by name, e.g. THINGS-EEG2 "
+                             "(63 ch) added to Alljoined-1.6M (32 ch). Never its test split")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR",
                         help="read windows from a scripts/cache_windows.py cache (#14): ~4x faster loading, "
                              "and workers share the memory-mapped files instead of each loading the dataset")
@@ -73,6 +77,8 @@ def main():
                              "minus the held-out concepts)")
     args = parser.parse_args()
     args.holdout = args.holdout or args.holdout_subjects
+    if args.extra_cache and not args.cache:
+        raise SystemExit("--extra-cache needs --cache (the main dataset's window cache)")
     if args.num_workers is None:
         args.num_workers = 4 if args.cache else 8
     checkpoint = args.out / "checkpoint.pt"
@@ -122,6 +128,21 @@ def main():
         from src.data.heldout import train_plus_val
 
         loaders["train"] = train_plus_val(loaders, device, args.batch_size, args.num_workers)
+    if args.extra_cache:
+        from src.data.heldout import _loader
+        from src.data.window_cache import CachedWindows
+
+        extra_names = json.loads((args.extra_cache / "meta.json").read_text())["ch_names"]
+        missing = [n for n in meta["ch_names"] if n not in extra_names]
+        if missing:
+            raise SystemExit(f"{args.extra_cache} lacks channels {missing}")
+        channels = [extra_names.index(n) for n in meta["ch_names"]]
+        # train + val only: THINGS-EEG2's test images are Alljoined's test images (our validation)
+        extra = CachedWindows([args.extra_cache / "train", args.extra_cache / "val"], channels=[channels] * 2,
+                              subject_offset=[1000] * 2)
+        loaders["train"] = _loader([loaders["train"].dataset, extra], device, True, args.batch_size, args.num_workers)
+        print(f"Extra training data: {len(extra)} windows from {args.extra_cache} "
+              f"({len(extra_names)} -> {len(channels)} channels)", flush=True)
     if args.avg_reps:
         from src.data.heldout import _loader
         from src.data.repetitions import RepetitionAveraged
@@ -188,7 +209,8 @@ def main():
         "command": "python " + " ".join(sys.argv),
         "commit": commit + ("+uncommitted-changes" if dirty else ""),
         "solver": str(args.solver), "holdout": args.holdout, "holdout_subjects": args.holdout_subjects, "train_subjects": args.train_subjects, "use_val": args.use_val, "dataset": args.dataset,
-        "batch_size": args.batch_size, "cache": str(args.cache) if args.cache else None, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
+        "batch_size": args.batch_size, "cache": str(args.cache) if args.cache else None,
+        "extra_cache": str(args.extra_cache) if args.extra_cache else None, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
         "resumed_after_epoch": getattr(solver, "resumed_from", None),  # fit_minutes then counts from there
