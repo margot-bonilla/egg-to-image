@@ -16,6 +16,9 @@ split minus held-out concepts; validation = held-out images in its "train" and
 ``heldout_subjects_split`` also holds out 2 of the 10 participants (configs/heldout_subjects.json),
 like the sealed final (new people *and* new images): training drops their windows too, and they
 are scored on 10 galleries of 200 held-out images (one image per held-out concept each).
+On Alljoined-1.6M (``dataset="xu2025alljoined"``: 20 participants, no concept labels, THINGS' images)
+it holds out 4 participants (configs/heldout_subjects_xu2025alljoined.json) and scores them on the
+test split: the 200 test images, never trained on, ~80 repetitions each, as in the final.
 """
 import json
 import re
@@ -48,6 +51,18 @@ class _OnDevice:
         return getattr(self.loader, name)
 
 
+def _field(extra: dict, key: str):
+    """A trigger field, with the image named ``stim_file`` on Alljoined (``stem`` on THINGS-EEG2)
+    and no concept (``category`` = "") there."""
+    if key in extra:
+        return extra[key]
+    if key == "stem":
+        return extra["stim_file"]
+    if key == "category":
+        return ""
+    return extra[key]
+
+
 def window_triggers(loader, keys=("category", "stem")) -> list[dict]:
     """Image fields (concept ``category``, image ``stem``) of every window, in loader order.
 
@@ -58,7 +73,7 @@ def window_triggers(loader, keys=("category", "stem")) -> list[dict]:
     if hasattr(ds, "fields"):  # src.data.window_cache.CachedWindows
         return ds.fields(keys)
     segments = ds.seg_ds.segments
-    return [{k: segments[int(i)].trigger.extra[k] for k in keys} for i in ds.index]
+    return [{k: _field(segments[int(i)].trigger.extra, k) for k in keys} for i in ds.index]
 
 
 def make_heldout_file(train_loader, n_concepts: int = 200, seed: int = 0) -> dict:
@@ -125,17 +140,27 @@ def train_plus_val(loaders: dict, device: str, batch_size: int | None = None, nu
     return _loader([loaders["train"].dataset, loaders["val"].dataset], device, True, bs, num_workers)
 
 
-def make_heldout_subjects_file(train_loader, n_subjects: int = 2, seed: int = 0) -> dict:
-    """Pick the held-out participants and write HELDOUT_SUBJECTS_FILE."""
+def subjects_file(dataset: str | None = None) -> Path:
+    """Held-out participants of a dataset (THINGS-EEG2 by default)."""
+    return HELDOUT_SUBJECTS_FILE if dataset is None else REPO / "configs" / f"heldout_subjects_{dataset}.json"
+
+
+def make_heldout_subjects_file(train_loader, n_subjects: int = 2, seed: int = 0, dataset: str | None = None) -> dict:
+    """Pick the held-out participants and write subjects_file(dataset)."""
     subjects = sorted({t["subject"] for t in window_triggers(train_loader, ("subject",))})
     rng = np.random.default_rng(seed)
     heldout = {"seed": seed, "subjects": sorted(str(s) for s in rng.choice(subjects, size=n_subjects, replace=False))}
-    HELDOUT_SUBJECTS_FILE.write_text(json.dumps(heldout, indent=1))
+    subjects_file(dataset).write_text(json.dumps(heldout, indent=1))
     return heldout
 
 
+def _natural(name: str):
+    return [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", name)]
+
+
 def heldout_subjects_split(loaders: dict, device: str, batch_size: int | None = None, num_workers: int = 0,
-                           include_val: bool = False, n_train_subjects: int | None = None) -> dict:
+                           include_val: bool = False, n_train_subjects: int | None = None,
+                           dataset: str | None = None) -> dict:
     """Return {"train": loader without held-out concepts or participants,
     "galleries": [loader per gallery]}: the held-out participants' windows of the held-out
     concepts, gallery g holding the g-th image (sorted by name) of every concept.
@@ -145,15 +170,25 @@ def heldout_subjects_split(loaders: dict, device: str, batch_size: int | None = 
     n_train_subjects: train on only the first N remaining participants (natural order: 1, 2, ..., 10),
     to measure how the unseen-participant score grows with the number of training participants.
     """
-    if not HELDOUT_SUBJECTS_FILE.exists():
-        raise FileNotFoundError(f"{HELDOUT_SUBJECTS_FILE} missing: create it once with make_heldout_subjects_file()")
-    concepts = set(json.loads(HELDOUT_FILE.read_text())["images"])
-    subjects = set(json.loads(HELDOUT_SUBJECTS_FILE.read_text())["subjects"])
-
+    path = subjects_file(dataset)
+    if not path.exists():
+        raise FileNotFoundError(f"{path} missing: create it once with make_heldout_subjects_file()")
+    subjects = set(json.loads(path.read_text())["subjects"])
     triggers = {split: window_triggers(loaders[split], ("category", "stem", "subject")) for split in ("train", "val")}
-    train_subjects = sorted({str(t["subject"]) for t in triggers["train"]} - subjects,
-                            key=lambda name: [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", name)])
+    train_subjects = sorted({str(t["subject"]) for t in triggers["train"]} - subjects, key=_natural)
     train_subjects = set(train_subjects[:n_train_subjects])
+    bs = batch_size or loaders["train"].batch_size
+
+    if not any(t["category"] for t in triggers["train"][:1000]):  # no concepts (Alljoined): score on the test split
+        train_parts = [_subset(loaders[split].dataset, [i for i, t in enumerate(triggers[split])
+                                                        if str(t["subject"]) in train_subjects])
+                       for split in (("train", "val") if include_val else ("train",))]
+        test = window_triggers(loaders["test"], ("subject",))
+        gallery = _subset(loaders["test"].dataset, [i for i, t in enumerate(test) if str(t["subject"]) in subjects])
+        return {"train": _loader(train_parts, device, True, bs, num_workers),
+                "galleries": [_loader([gallery], device, False, bs, num_workers)]}
+
+    concepts = set(json.loads(HELDOUT_FILE.read_text())["images"])
     train_parts, held = [], []
     for split in ("train", "val"):
         trig = triggers[split]
@@ -168,7 +203,6 @@ def heldout_subjects_split(loaders: dict, device: str, batch_size: int | None = 
             images.setdefault(t["category"], set()).add(t["stem"])
     images = {c: sorted(v) for c, v in images.items()}
     n_galleries = min(len(v) for v in images.values())
-    bs = batch_size or loaders["train"].batch_size
     galleries = []
     for g in range(n_galleries):
         gallery = {v[g] for v in images.values()}

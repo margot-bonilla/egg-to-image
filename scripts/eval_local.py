@@ -78,14 +78,14 @@ def main():
     if args.cache:
         from src.data.window_cache import cached_loaders
 
-        splits = ("test",) if args.split == "test" else ("train", "val")
+        splits = ("test",) if args.split == "test" else ("train", "val", "test")
         loaders = cached_loaders(loaders, args.cache, device, args.batch_size, splits=splits)
 
     objective = load_module("objective", TRACK / "objective.py").Objective.get_instance()
     if args.split == "heldout_subjects":
         from src.data.heldout import heldout_subjects_split
 
-        galleries = heldout_subjects_split(loaders, device, args.batch_size)["galleries"]
+        galleries = heldout_subjects_split(loaders, device, args.batch_size, dataset=args.dataset)["galleries"]
     elif args.split == "heldout":
         from src.data.heldout import heldout_split
 

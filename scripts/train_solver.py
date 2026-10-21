@@ -103,14 +103,15 @@ def main():
     if args.cache:
         from src.data.window_cache import cached_loaders
 
-        loaders = cached_loaders(loaders, args.cache, device, args.batch_size, splits=("train", "val"),
+        # test too: on Alljoined the held-out participants are scored on the test split every epoch
+        loaders = cached_loaders(loaders, args.cache, device, args.batch_size, splits=("train", "val", "test"),
                                  num_workers=args.num_workers)
     galleries = None  # held-out loaders, scored after each epoch (mean over galleries)
     if args.holdout_subjects:
         from src.data.heldout import heldout_subjects_split
 
         split = heldout_subjects_split(loaders, device, args.batch_size, args.num_workers, include_val=args.use_val,
-                                       n_train_subjects=args.train_subjects)
+                                       n_train_subjects=args.train_subjects, dataset=args.dataset)
         loaders["train"], galleries = split["train"], split["galleries"]
     elif args.holdout:
         from src.data.heldout import heldout_split
