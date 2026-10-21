@@ -136,6 +136,30 @@ class SpatialAttention(nn.Module):
         return torch.einsum("bct,oc->bot", x, torch.softmax(scores, dim=1))
 
 
+class SubjectAdversary(nn.Module):
+    """Training-only participant classifier on the embedding, for participant-invariant training
+    by domain confusion (Tzeng et al., 2015): the classifier learns to recognise the participant
+    from (detached) embeddings, while the encoder is trained to make its output uniform over the
+    participants. (A gradient-reversal layer, as in DANN, let the encoder make the classifier
+    confidently *wrong* instead, which keeps the participant information.) Not saved."""
+
+    def __init__(self, dim: int, n_subjects: int = 128, hidden: int = 256):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(dim, hidden), nn.ReLU(), nn.Linear(hidden, n_subjects))
+
+    def forward(self, emb):
+        return self.net(emb)
+
+    def losses(self, emb, subjects):
+        """(classifier loss, confusion loss, number of correct guesses) for one batch."""
+        logits = self.net(emb.detach())  # trains the classifier only
+        frozen = {k: v.detach() for k, v in self.named_parameters()}
+        confused = torch.func.functional_call(self, frozen, (emb,))  # trains the encoder only
+        present = torch.unique(subjects)  # uniform over the participants actually in the batch
+        confusion = -F.log_softmax(confused[:, present], dim=1).mean()
+        return F.cross_entropy(logits, subjects), confusion, int((logits.argmax(1) == subjects).sum())
+
+
 class ResidualBlock(nn.Module):
     """x + Dropout(Linear(GELU(x))), as in ATM's projection head."""
 
@@ -167,8 +191,15 @@ class EEGToImageEncoder(nn.Module):
         fourier_freqs: int = 16,
         spatial_dropout: float = 0.0,
         ch_names=None,
+        window_norm: bool = False,
     ):
         super().__init__()
+        # Optional per-window normalisation: each channel standardised over time inside the window,
+        # removing per-person/per-session amplitude and offset differences. A marker buffer is saved
+        # in the weights so that inference (encoder_sizes) switches it back on.
+        self.window_norm = window_norm
+        if window_norm:
+            self.register_buffer("window_norm_on", torch.ones(1))
         # Optional montage-independent input layer: the channels (placed by name) are first mapped
         # to `virtual_channels` virtual ones, so the rest of the network never sees n_chans.
         self.spatial_attention = None
@@ -219,6 +250,8 @@ class EEGToImageEncoder(nn.Module):
         self.head_norm = nn.LayerNorm(output_dim) if head_blocks else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.window_norm:
+            x = (x - x.mean(dim=-1, keepdim=True)) / (x.std(dim=-1, keepdim=True) + 1e-6)
         if self.spatial_attention is not None:
             x = self.spatial_attention(x, self.positions, self.known)  # (B, C, T) -> (B, virtual, T)
         if x.dim() == 3:
@@ -245,6 +278,7 @@ def encoder_sizes(state_dict):
         "sep_filters": state_dict["sep_conv.1.weight"].shape[0],
         "hidden_dim": state_dict["projection_head.0.weight"].shape[0],
         "head_blocks": sum(1 for k in state_dict if k.startswith("head_blocks.") and k.endswith(".linear.weight")),
+        **({"window_norm": True} if "window_norm_on" in state_dict else {}),
         **({"virtual_channels": state_dict["spatial_attention.heads"].shape[0],
             "fourier_freqs": math.isqrt(state_dict["spatial_attention.heads"].shape[1] // 2)}
            if "spatial_attention.heads" in state_dict else {}),
@@ -333,6 +367,10 @@ class Solver(CompetSolver):
     virtual_channels = 0
     fourier_freqs = 16
     spatial_dropout = 0.0  # training: drop electrodes within this radius of a random scalp point
+    # Towards unseen participants: per-window channel standardisation (also applied at inference),
+    # and participant-adversarial training (domain confusion; weight of its loss, 0 = off; training only).
+    window_norm = False
+    adversarial_weight = 0.0
     seed = 0
     temperature = 0.07
     learn_temperature = False
@@ -380,7 +418,7 @@ class Solver(CompetSolver):
             return build(temporal_filters=self.temporal_filters, spatial_filters=self.spatial_filters,
                          sep_filters=self.sep_filters, hidden_dim=self.hidden_dim,
                          head_blocks=self.head_blocks, virtual_channels=self.virtual_channels,
-                         fourier_freqs=self.fourier_freqs).eval()
+                         fourier_freqs=self.fourier_freqs, window_norm=self.window_norm).eval()
 
         submission_dir = Path(meta["submission_dir"])
         paths = sorted(submission_dir.glob("weights_*.pt")) or [submission_dir / "weights.pt"]
@@ -400,6 +438,11 @@ class Solver(CompetSolver):
                                        requires_grad=self.learn_temperature)
         max_log_scale = math.log(1 / self.min_temperature)
         params = list(model.parameters()) + ([log_scale] if self.learn_temperature else [])
+        adversary = None
+        if self.adversarial_weight:  # training-only participant classifier (not saved)
+            adversary = SubjectAdversary(model.projection_head[-1].out_features).to(device)
+            params += list(adversary.parameters())
+        total_steps = max(self.n_epochs * len(train_loader), 1)
         optimizer = torch.optim.AdamW(params, lr=self.lr, weight_decay=self.weight_decay)
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, self._lr_factor(len(train_loader)))
         best_score, best_state, bad = -math.inf, None, 0
@@ -408,6 +451,8 @@ class Solver(CompetSolver):
         if self.checkpoint is not None and Path(self.checkpoint).exists():
             state = torch.load(self.checkpoint, map_location=device, weights_only=True)
             model.load_state_dict(state["model"])
+            if adversary is not None:
+                adversary.load_state_dict(state["adversary"])
             optimizer.load_state_dict(state["optimizer"])
             scheduler.load_state_dict(state["scheduler"])
             with torch.no_grad():
@@ -419,14 +464,23 @@ class Solver(CompetSolver):
             print(f"Resumed from {self.checkpoint} after epoch {start}", flush=True)
         for epoch in range(start, 0 if done else self.n_epochs):
             model.train()
-            total, n_batches = 0.0, 0
-            for X, y, _info in train_loader:
+            total, n_batches, adv_hits, adv_n = 0.0, 0, 0, 0
+            for X, y, info in train_loader:
                 if len(X) < 2:  # BatchNorm1d needs more than one sample per batch
                     continue
                 X = augment(X.float(), self.max_shift, self.channel_dropout)
                 optimizer.zero_grad()
                 scale = log_scale.clamp(max=max_log_scale).exp()  # temperature >= min_temperature
-                loss = clip_loss(model(X), y.float(), scale, self.dedup, self.symmetric)
+                emb = model(X)
+                loss = clip_loss(emb, y.float(), scale, self.dedup, self.symmetric)
+                if adversary is not None:
+                    # the confusion weight ramps from 0 to adversarial_weight (DANN's schedule)
+                    progress = (epoch * len(train_loader) + n_batches) / total_steps
+                    ramp = 2 / (1 + math.exp(-10 * progress)) - 1
+                    subjects = info["subject_id"].to(device).long()
+                    classifier_loss, confusion, hits = adversary.losses(emb, subjects)
+                    loss = loss + classifier_loss + self.adversarial_weight * ramp * confusion
+                    adv_hits, adv_n = adv_hits + hits, adv_n + len(subjects)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
@@ -436,6 +490,8 @@ class Solver(CompetSolver):
             temperature = float(1 / log_scale.clamp(max=max_log_scale).exp())
             record = {"epoch": epoch + 1, "train_loss": total / max(n_batches, 1), "temperature": temperature,
                       "lr": optimizer.param_groups[0]["lr"]}
+            if adversary is not None:  # how well the participant can still be recognised (lower = more invariant)
+                record["subject_acc"] = adv_hits / max(adv_n, 1)
             if self.epoch_callback is not None:
                 record["heldout"] = float(self.epoch_callback(model, epoch + 1, record["train_loss"], temperature))
                 if record["heldout"] > best_score:
@@ -453,7 +509,8 @@ class Solver(CompetSolver):
                             "scheduler": scheduler.state_dict(), "log_scale": log_scale.detach(),
                             "best_score": best_score, "best_state": best_state, "bad": bad,
                             "history": self.history, "epoch": epoch + 1, "done": stop,
-                            "rng": _get_rng_state(device)}, tmp)
+                            "rng": _get_rng_state(device),
+                            **({"adversary": adversary.state_dict()} if adversary is not None else {})}, tmp)
                 tmp.replace(self.checkpoint)  # atomic: a crash mid-save keeps the previous checkpoint
             if stop:
                 break
