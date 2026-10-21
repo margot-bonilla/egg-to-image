@@ -1,0 +1,22 @@
+{
+  "command": "python scripts/train_solver.py submission/submission.py submissions/final_r6_s3 --use-val --seed 3 --cache cache/windows/things_eeg2 --resume --set learn_temperature=True n_epochs=40",
+  "commit": "95e45eac43c412034409bf6a7861880d5a0fd58e",
+  "solver": "submission/submission.py",
+  "holdout": false,
+  "holdout_subjects": false,
+  "use_val": true,
+  "dataset": null,
+  "batch_size": 256,
+  "cache": "cache/windows/things_eeg2",
+  "avg_reps": 0,
+  "avg_reps_random": false,
+  "seed": 3,
+  "overrides": {
+    "learn_temperature": true,
+    "n_epochs": 40
+  },
+  "train_windows": 668400,
+  "fit_minutes": 96.2,
+  "resumed_after_epoch": null,
+  "epochs_run": 40
+}

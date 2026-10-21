@@ -1,7 +1,7 @@
 PYTHON := .venv/bin/python
 PIP := .venv/bin/pip
 
-.PHONY: env env-create env-install neuralbench-config competition-repo test train train-debug zip-submission test-submission clean help
+.PHONY: env env-create env-install neuralbench-config competition-repo test train train-debug zip-submission test-submission pause-training resume-training training-status docs-latex clean help
 
 help:
 	@echo "Available commands:"
@@ -11,6 +11,10 @@ help:
 	@echo "  make train-debug      - Train on synthetic warm-up-shaped data via Benchopt (pipeline check only)"
 	@echo "  make zip-submission   - Package submission folder for Codabench upload"
 	@echo "  make test-submission  - Zip, then run it read-only like Codabench does"
+	@echo "  make pause-training   - Freeze local training runs (frees the GPU; nothing is lost)"
+	@echo "  make resume-training  - Continue them where they stopped"
+	@echo "  make training-status  - Running / paused, and the latest epoch"
+	@echo "  make docs-latex       - docs/*.md -> docs/latex/*.tex + PDF (pandoc + LuaLaTeX; diagrams as TikZ)"
 	@echo "  make clean            - Remove temporary caches"
 
 env: env-create env-install competition-repo neuralbench-config
@@ -76,6 +80,19 @@ test-submission: competition-repo zip-submission
 		benchopt run tracks/image_decoding -d "$(WARMUP_SIM)" \
 		-s "$(CURDIR)/dist/unzipped/submission.py" --no-plot --no-cache
 	chmod -R u+w dist/unzipped
+
+# Local training runs (scripts/train_solver.py): see scripts/training.sh.
+pause-training:
+	@scripts/training.sh pause
+
+resume-training:
+	@scripts/training.sh resume
+
+training-status:
+	@scripts/training.sh status
+
+docs-latex:
+	$(PYTHON) scripts/docs_to_latex.py
 
 clean:
 	find . -type d -name "__pycache__" -not -path "./.venv/*" -exec rm -rf {} +
