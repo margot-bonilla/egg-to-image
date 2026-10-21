@@ -583,16 +583,19 @@ are only used locally, by
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
-\subsection{8. Where we are and
-what\textquotesingle s
-running}\label{where-we-are-and-whats-running}
+\subsection{8. Where we are (Oct
+21)}\label{where-we-are-oct-21}
+
+\subsubsection{Warm-up leaderboard
+(THINGS-EEG2: same 10 people, 63
+channels)}\label{warm-up-leaderboard-things-eeg2-same-10-people-63-channels}
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0833}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4306}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2361}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0822}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4932}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1096}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3151}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Date
@@ -620,45 +623,109 @@ Oct 19 & \textbf{+25\% data}
 (NeuralBench\textquotesingle s val
 split) & 0.5525 & 0.71 \\
 Oct 20 & Final: all concepts, 3-seed
-ensemble & -- & \textbf{0.74} (top-1
-0.40) \\
-Oct 20 & R6: 40 epochs instead of 20 &
-\textbf{0.590} & (forecast
-0.75--0.78) \\
-Oct 20 & R15: temperature floor 0.005 &
-0.564 (stopped at epoch 32) & no gain \\
-Oct 20 & R7: average 1--4 repetitions &
-0.555 (cut short by early stopping) & to
-re-test \\
+ensemble & -- & 0.74 (top-1 0.40) \\
+Oct 20 & R6: \textbf{40 epochs} instead
+of 20 & 0.590 & \\
+Oct 21 & \textbf{Final: R6 recipe,
+3-seed ensemble} & -- & \textbf{0.78
+(top-1 0.44)} \\
+Oct 21 & R12: \textbf{wider
+convolutions} (64/128/256 filters) &
+\textbf{0.615} & (overnight: 3-seed
+final, forecast ≈ 0.80) \\
 \end{longtable}
 }
 
-Queued (\texttt{logs/round2.status}): R8
-repetition averaging (\#17), R9--R11
-cosine schedule and larger batches
-(\#18), R12--R14 wider encoder (\#27).
+No gain, on held-out concepts:
+temperature floor 0.005 (R15), cosine
+schedule (R9, 0.570), batch 512 / 1024
+with cosine (R10 0.581, R11 0.586:
+nearly R6\textquotesingle s score in 62
+instead of 105 minutes), repetition
+averaging (R7/R8, cut short by early
+stopping, to re-test), a wider head only
+(R13, trailing, cancelled).
 
-\subsubsection{The big caveat for the
-final
-phase}\label{the-big-caveat-for-the-final-phase}
+\subsubsection{The final phase: unseen
+people, 32
+channels}\label{the-final-phase-unseen-people-32-channels}
 
-The sealed final phase (Oct 28 -- Nov
-21) is \textbf{not} THINGS-EEG2.
-It\textquotesingle s a private
-\textbf{Alljoined} cohort: \textbf{11
-new participants, 32 channels} (Emotiv
-headset), new images. Everything above
-transfers as a recipe, but the models
-need to be retrained for the 32-channel
-input and must generalise to
-\textbf{unseen people}, which EEG
-notoriously struggles with (skull shape,
-electrode placement and brain anatomy
-differ). That\textquotesingle s
-milestone M4 (\#21: THINGS-EEG2 mapped
-onto the Emotiv montage + joint training
-with Alljoined-1.6M) and \#4 (validation
-on held-out participants).
+The sealed final (Oct 28 -- Nov 21) is a
+private \textbf{Alljoined} cohort:
+\textbf{11 new participants, 32-channel
+Emotiv headset}, new images. We now
+measure exactly that:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{THINGS-EEG2 held-out
+  participants}
+  (\texttt{-\/-holdout-subjects},
+  participants 6 and 7 never seen, 10
+  galleries): the R6 recipe scores
+  \textbf{0.233} on unseen people,
+  against \textbf{0.635} when the same
+  two people were in training. Unseen
+  people are the main problem.
+\item
+  \textbf{Alljoined-1.6M} (downloaded
+  Oct 21: 20 participants, 32 channels,
+  \textasciitilde1.66M windows, exactly
+  THINGS-EEG2\textquotesingle s images):
+  trained on 16 participants, scored on
+  4 unseen ones over the 200 test
+  images: \textbf{≈ 0.27} (A1).
+\end{itemize}
+
+What helps on unseen people
+(THINGS-EEG2, one change each from
+0.233):
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.6393}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.3607}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Change
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Unseen-people score
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{Per-window normalisation}
+(\texttt{window\_norm}) & \textbf{0.274}
+(+4.1) \\
+Wider convolutions & 0.253 (+2.0, 3.5×
+slower) \\
+Spatial attention (montage-independent
+input layer) & 0.255 (+1.6 on
+average) \\
+Augmentation (time shift, channel
+dropout) & 0.230 (none) \\
+Participant-adversarial training & 0.190
+(hurts) \\
+\textbf{Fewer training participants:} 2
+/ 4 / 6 / 8 & 0.161 / 0.183 / 0.187 /
+0.233 \\
+\end{longtable}
+}
+
+\textbf{More participants is the biggest
+lever}, so next: joint training on
+THINGS-EEG2 + Alljoined (26 people,
+THINGS reduced to
+Alljoined\textquotesingle s 32
+channels), and transfer from
+\textbf{REVE}, an EEG model pretrained
+on many people (frozen, with an
+attention-pooling head). Details in
+\href{architecture_deep_dive.pdf}{architecture\_deep\_dive.md}
+§9--§10.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
@@ -878,6 +945,32 @@ blocks}\label{the-building-blocks}
   Linear learning-rate scaling and
   warm-up for big batches (\#18).
 \end{enumerate}
+
+\subsubsection{Generalising to new
+people (added Oct 21; from memory, check
+titles)}\label{generalising-to-new-people-added-oct-21-from-memory-check-titles}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Kolesnikov et al., "Big
+  Transfer (BiT)" (ECCV 2020).} More
+  (and more varied) pretraining data
+  matters most when the test data
+  differs from training: our "more
+  participants" lever.
+\item
+  \textbf{El Ouahidi et al., REVE
+  (2025).} The EEG foundation model we
+  transfer from (§8, deep dive §10.4).
+\item
+  \textbf{Ganin \& Lempitsky (2015),
+  DANN, and Tzeng et al. (2015), domain
+  confusion.} Adversarial domain
+  invariance, which we tried for
+  participants (it hurt: deep dive
+  §10.3).
+\end{itemize}
 
 \subsubsection{EEG fundamentals (if the
 neuroscience side is

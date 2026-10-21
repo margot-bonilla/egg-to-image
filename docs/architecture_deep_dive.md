@@ -21,6 +21,7 @@ Contents
 7. [Paper map and bibliography](#7-paper-map-and-bibliography)
 8. [Teaching kit](#8-teaching-kit)
 9. [Next: new people and new headsets (in progress)](#9-next-new-people-and-new-headsets-in-progress)
+10. [Unseen participants and Alljoined: results and new tools (Oct 21)](#10-unseen-participants-and-alljoined-results-and-new-tools-oct-21)
 
 ---
 
@@ -447,13 +448,20 @@ Sources: `RESULTS.md`, `logs/overnight_summary.md`, `logs/round2.status`, `logs/
 | **R6 40 epochs** | 20 epochs were too few | `n_epochs=40`, early stopping | **0.590** (epoch 36) | not run | – | **+3.75**: keep; still rising at 40 |
 | R15 floor 0.005 | τ is stuck at the 0.01 floor | `min_temperature=0.005` | 0.564 at epoch 31 (stopped at 32/40 by a restart) | – | – | Trailed R6 throughout: no gain |
 | R7 avg 1–4 reps (random) | Cleaner training examples | `--avg-reps 4 --avg-reps-random` | 0.555 (epoch 46, stopped at 51) | – | – | Cut short by patience (§3.4); faster per minute than R6; re-test with scaled patience |
-| R8 avg 2 reps | Same, fixed k = 2 | `--avg-reps 2` | running at the time of writing (0.508 at epoch 28) | – | – | – |
+| R8 avg 2 reps | Same, fixed k = 2 | `--avg-reps 2` | 0.5535 (epoch 47, stopped at 52) | – | – | Same caveat as R7 |
+| R9 cosine | A decaying lr finds a better optimum | `lr_schedule='cosine' warmup_epochs=1`, 30 epochs, patience 8 | 0.570 (epoch 27) | – | – | Below R6 (0.590 at 40 constant-lr epochs) |
+| R10 batch 512 | More negatives per step | R9 + `--batch-size 512 lr=2e-3` | 0.581 (epoch 30) | – | – | ≈ R6 |
+| R11 batch 1024 | Even more negatives | R9 + `--batch-size 1024 lr=4e-3` | 0.586 (epoch 27) | – | – | ≈ R6 in **62 instead of 105 min**: candidate with more epochs |
+| **R12 wider convs** | The encoder is capacity-limited | `temporal_filters=64 spatial_filters=128 sep_filters=256` (2.26M params) | **0.615** (epoch 22, stopped at 27) | – | – | **+2.5**: keep (5–6 points ahead of R6 at every epoch); ~2.6× slower per epoch |
+| R13 wider head | Same, in the head | `hidden_dim=1024 head_blocks=1` | 0.529 at epoch 17 (R6 there: 0.545) | – | – | Trailing: cancelled, as was R14 (both) |
+| **Final R6 recipe** | 40 epochs on all concepts | R6 recipe, all concepts + val, seeds 1–3, ensembled (`final_r6_ens3`) | n/a | **0.7760** (seeds 0.755–0.766) | **0.78** (top-1 0.44) | Current best (submission 1007631, rank 60); trained at `95e45ea` |
 
 Top-1 subject-aggregated for the uploaded models: 0.09 (EEGNet) → 0.22 → 0.34 (R2) → 0.37
-(R5) → **0.40** (final ensemble).
+(R5) → 0.40 (final ensemble) → **0.44** (final R6 recipe).
 
-Queued (`logs/round2.status`): R9–R11 cosine schedule with batch 256 / 512 / 1024 (#18);
-R12–R14 wider convolutions / head 1024 + residual block / both (#27).
+Overnight Oct 21→22: a 3-seed final of the R12 recipe (wider convolutions, 24 epochs,
+`logs/round6.sh`), packaged only if it beats 0.776 on the local test. Unseen-participant
+experiments are in §10.
 
 ---
 
@@ -514,7 +522,9 @@ flowchart LR
 | Position-based spatial attention, spatial dropout | Défossez et al. 2023 | "Spatial attention" layer in Methods (Fourier embedding of sensor positions) | `SpatialAttention`, `Solver.virtual_channels` (§9.2) |
 | Electrode positions (10-05 system) | Oostenveld & Praamstra 2001 **(unverified)**; MNE's `standard_1005` montage | | `ELECTRODE_XY`, `channel_positions` |
 | Held-out participants (cross-subject validation) | standard practice; motivated by the sealed final's unseen subjects | | `heldout_subjects_split` (§9.1) |
-| EEG foundation model (tried, weak) | El Ouahidi et al. 2025 (REVE) | | `logs/reve*` |
+| EEG foundation model: frozen + channel-averaged (weak), then tokens + attention-pooling head | El Ouahidi et al. 2025 (REVE) | | `submission/reve_submission.py`, `scripts/cache_reve_tokens.py` (§10.4) |
+| More pretraining data matters most out of distribution (motivates more participants, REVE) | Kolesnikov et al. 2020 (BiT) **(unverified)** | ObjectNet figure | §10.1 participant curve |
+| Participant-adversarial training (DANN, domain confusion) | Ganin & Lempitsky 2015; Tzeng et al. 2015; Elazar & Goldberg 2018 **(unverified)** | | `SubjectAdversary`, `adversarial_weight` (§10.3) |
 | Final-phase data family | Xu et al. 2024 (Alljoined1); Xu et al. 2025 (Alljoined-1.6M) | Dataset papers | issues #4, #21 |
 | A convolution + transformer EEG encoder (candidate for #12) | Song et al. 2023 (EEG Conformer) | Architecture figure | not implemented |
 
@@ -588,6 +598,16 @@ available while writing this, so the others are from memory and marked **(unveri
 - Hendrycks, D., & Gimpel, K. (2016). Gaussian error linear units (GELUs). arXiv. **(unverified)**
 - Srivastava, N., et al. (2014). Dropout: A simple way to prevent neural networks from
   overfitting. *JMLR*. **(unverified)**
+
+**Added Oct 21 (from memory, unverified: check titles before citing)**
+- Kolesnikov, A., Beyer, L., Zhai, X., Puigcerver, J., Yung, J., Gelly, S., & Houlsby, N. (2020).
+  Big Transfer (BiT): General Visual Representation Learning. ECCV. **(unverified)**
+- Ganin, Y., & Lempitsky, V. (2015). Unsupervised Domain Adaptation by Backpropagation. ICML
+  (the gradient-reversal layer, DANN). **(unverified)**
+- Tzeng, E., Hoffman, J., Darrell, T., & Saenko, K. (2015). Simultaneous Deep Transfer Across
+  Domains and Tasks. ICCV (domain-confusion loss). **(unverified)**
+- Elazar, Y., & Goldberg, Y. (2018). Adversarial Removal of Demographic Attributes from Text
+  Data. EMNLP (adversarially "removed" attributes stay recoverable). **(unverified)**
 
 ---
 
@@ -727,7 +747,10 @@ galleries give 16,174 windows, ~4,000 queries, and a measured standard error of 
 | Model | Trained on participants 6 and 7? | Held-out-participants score (top-5 SA) |
 |---|---|---|
 | R6 | yes (reference, not a real held-out score) | 0.6352 ± 0.0077 |
-| any `--holdout-subjects` run | no | to be measured: the drop from 0.635 is the cost of unseen people |
+| **R16** (R6 recipe, `--holdout-subjects`) | no | **0.2333** (best epoch 16 of 21) |
+
+Unseen people cost about 40 points. R16 also peaked much earlier (epoch 16) than R6 on seen
+people (epoch 36): longer training fits the training participants, not people in general.
 
 ### 9.2 One model for any headset: spatial attention
 
@@ -765,10 +788,96 @@ flowchart LR
   32-channel Emotiv montage with the same weights. Positions are per-montage buffers, not saved
   in `weights.pt`.
 
-### 9.3 The plan
+**Result (R17 = R16 + `virtual_channels=64 spatial_dropout=0.15`):** best 0.2553 vs 0.2333,
+and +1.6 on average over the last 10 epochs: a small, consistent gain (one seed). But R17
+trained **3.2× slower** (116 vs 36 min). It isn't the softmax/einsum layout: with the layer in
+front, the first convolution must also compute the gradient of its input, which looks slow on
+the Apple GPU for this shape; a clean benchmark needs an idle GPU (to do).
+
+### 9.3 The plan (as of Oct 20; see §10 for what happened)
 
 1. Train the R6 recipe with `--holdout-subjects` (the unseen-people baseline).
 2. Same with `--set virtual_channels=64 spatial_dropout=0.15`: does spatial attention cost
    anything on THINGS-EEG2, and does it help on unseen people?
 3. Then joint training on THINGS-EEG2 + Alljoined (issue #21), possible only with step 2's layer,
    validated on Alljoined's held-out participants (issue #4).
+
+---
+
+## 10. Unseen participants and Alljoined: results and new tools (Oct 21)
+
+### 10.1 What helps on unseen people (THINGS-EEG2, round 3)
+
+Each run is R16 (0.2333) with **one** change, scored on participants 6 and 7 (10 galleries,
+standard error ≈ 0.8 points):
+
+| Run | Change | Score | Δ | Verdict |
+|---|---|---|---|---|
+| **R18** | `window_norm=True`: each channel standardised over time inside each window | **0.274** | **+4.1** | ✓ keep: removes per-person amplitude/offset differences, costs nothing. REVE's own preprocessing does the same per-window z-scoring |
+| R20 | wider convolutions (R12's) | 0.253 | +2.0 | ✓ helps, smaller than on seen people (+2.5), 3.5× slower |
+| R21 | `max_shift=6 channel_dropout=0.1` | 0.230 | −0.3 | – no effect (it hurt on seen people, R4) |
+| R19 | `adversarial_weight=1.0` (domain confusion, §10.3) | 0.190 | −4.3 | ✗ hurts: drop |
+
+**The participant curve** (`--train-subjects N`: the first N of the 8 training participants):
+
+| Training participants | 2 | 4 | 6 | 8 |
+|---|---|---|---|---|
+| Unseen-people score | 0.161 | 0.183 | 0.187* | 0.233 |
+
+\* stopped at epoch 8 (best epoch 3): unreliable. The trend, about +3.6 points per doubling and
+not flattening, is the EEG version of the "more pretraining data" lesson of BiT
+(Kolesnikov et al., 2020): **more people is the biggest lever.** Which people matters too (one
+seed per point).
+
+### 10.2 Alljoined-1.6M: the final's format
+
+- **Data:** 20 participants, 32-channel Emotiv (Cz, FCz, AFz, Fp1/2, F1/2/5/6, CP1–6, P1–8, PO3/4/7/8,
+  O1/2, Oz, POz, Pz), 120 Hz, ~1.66M windows (train 1,065,150 · val 270,466 · test 324,294).
+  NeuralFetch study `Xu2025Alljoined` (licence CC-BY-NC-ND-4.0, `ALLJOINED_ACCEPT_LICENCE=1`).
+- **Same images as THINGS-EEG2:** 16,540 training + 200 test images; the 200 test images' DINOv2
+  embeddings match THINGS-EEG2's one-to-one (cosine 1.000000). Files are numbered (`stim_file`),
+  without concept names. Consequences: joint training is aligned, and **Alljoined's test images are
+  the warm-up leaderboard's**, so its test split is never trained on.
+- **Validation split** (`--dataset xu2025alljoined --holdout-subjects`): participants 2, 4, 14, 18
+  held out (`configs/heldout_subjects_xu2025alljoined.json`), scored on their test-split windows
+  (200 images × ~80 repetitions, 64,895 windows, ~800 queries, SE ≈ 1.6 points); training on the
+  other 16 participants (1,068,339 windows).
+- **First results (round 4):** A1 (R6 recipe) **0.2775** (a one-epoch peak; neighbours ≈ 0.265),
+  A2 (+ `window_norm`) 0.2612 (stopped early at 14). Inconclusive at this noise level; re-test with
+  smoothed early stopping (§10.3).
+- **All 32 Alljoined channels exist in THINGS-EEG2's 63**, so THINGS-EEG2 can be reduced to the
+  same montage: `--extra-cache cache/windows/things_eeg2` trains on Alljoined's 16 participants +
+  THINGS-EEG2's 10 (train + val only), 1,736,739 windows (A4).
+
+### 10.3 New training options (all off by default; defaults train bit-identically)
+
+| Option | What it does | Source |
+|---|---|---|
+| `window_norm` | per-window channel z-scoring in `forward` (also at inference; a marker buffer in the weights switches it back on) | standard EEG normalisation; REVE's preprocessing |
+| `adversarial_weight` | **domain confusion**: a training-only classifier learns the participant from detached embeddings, the encoder is pushed to make its output uniform. A gradient-reversal version (DANN) first made the classifier confidently *wrong* (accuracy below chance), keeping the information; neither removed it for a fresh probe on a toy problem, and R19 shows it hurts | Ganin & Lempitsky 2015 (DANN); Tzeng et al. 2015 (domain confusion); Elazar & Goldberg 2018 (adversarial removal often fails) **(unverified)** |
+| `smooth=k` | early stopping and best-epoch selection on the mean of the last k held-out scores (only full windows); next rounds use `smooth=3 patience=10` | motivated by R24/A1/A2 stopping on noise spikes |
+| `--train-subjects N` | train on the first N remaining participants (participant curve) | |
+| `--extra-cache DIR` | joint training with another dataset's window cache, channels mapped by name, subject ids offset | |
+
+### 10.4 REVE transfer, stage 1 (round 5)
+
+REVE (El Ouahidi et al., 2025; `brain-bzh/reve-base`, 69M parameters, pretrained on EEG from many
+people) makes one 512-d token per channel for a 1 s window, placing channels by name (any
+montage). Frozen and **averaged over channels** (the official probe), it reached only ~0.13.
+
+- **Stage 1** keeps every channel's token and trains an **attention-pooling head**
+  (`AttentionPoolHead`: 8 learned queries attend over the channel tokens, then an MLP to the
+  1536-d embedding): `scripts/cache_reve_tokens.py` runs frozen REVE once (official preprocessing:
+  200 Hz, per-window z-score, clamp ±15; float16 tokens), `scripts/train_on_tokens.py` trains the
+  head with `Solver.fit` unchanged, `submission/reve_submission.py` is the Codabench solver (the
+  worker image installs braindecode and stages `brain-bzh/reve-base`; only the head is shipped).
+  The exported submission on raw windows matches the head on cached tokens (cosine 1.000000).
+- **Stage 2** (only if stage 1 is competitive): fine-tune REVE's top layers on cached
+  intermediate tokens. Full fine-tuning costs ~2 h per Alljoined epoch on the Mac: too slow.
+
+### 10.5 Where this leaves the final recipe
+
+In: per-window normalisation, wider convolutions (if the slowdown is affordable), more
+participants (joint THINGS-EEG2 + Alljoined), smoothed early stopping. Out: participant-adversarial
+training, augmentation. Open: spatial attention (only needed if the final's montage differs from
+Alljoined's), REVE (round 5), repetition averaging (re-test with smoothed early stopping).
