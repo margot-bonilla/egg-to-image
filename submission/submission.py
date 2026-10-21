@@ -380,6 +380,7 @@ class Solver(CompetSolver):
     max_shift = 0  # samples (120 Hz)
     channel_dropout = 0.0
     patience = 5  # epochs without held-out improvement, when an epoch_callback is set
+    smooth = 1  # select/stop on the mean held-out score of the last `smooth` epochs (noisy splits: 3)
     # Optional hook set by scripts/train_solver.py --holdout: called after each epoch as
     # epoch_callback(model, epoch, train_loss, temperature) -> held-out score (higher is
     # better); fit then keeps the best epoch and stops early. Never set on Codabench.
@@ -494,8 +495,14 @@ class Solver(CompetSolver):
                 record["subject_acc"] = adv_hits / max(adv_n, 1)
             if self.epoch_callback is not None:
                 record["heldout"] = float(self.epoch_callback(model, epoch + 1, record["train_loss"], temperature))
-                if record["heldout"] > best_score:
-                    best_score, bad = record["heldout"], 0
+                recent = [r["heldout"] for r in self.history[-(self.smooth - 1):]] if self.smooth > 1 else []
+                score = sum(recent + [record["heldout"]]) / (len(recent) + 1)
+                if self.smooth > 1 and len(recent) + 1 == self.smooth:
+                    record["heldout_smooth"] = score
+                if len(recent) + 1 < self.smooth:
+                    pass  # not a full window yet: an early spike would dominate the mean
+                elif score > best_score:
+                    best_score, bad = score, 0
                     best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
                 else:
                     bad += 1
