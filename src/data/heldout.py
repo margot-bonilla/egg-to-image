@@ -18,6 +18,7 @@ like the sealed final (new people *and* new images): training drops their window
 are scored on 10 galleries of 200 held-out images (one image per held-out concept each).
 """
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -134,24 +135,30 @@ def make_heldout_subjects_file(train_loader, n_subjects: int = 2, seed: int = 0)
 
 
 def heldout_subjects_split(loaders: dict, device: str, batch_size: int | None = None, num_workers: int = 0,
-                           include_val: bool = False) -> dict:
+                           include_val: bool = False, n_train_subjects: int | None = None) -> dict:
     """Return {"train": loader without held-out concepts or participants,
     "galleries": [loader per gallery]}: the held-out participants' windows of the held-out
     concepts, gallery g holding the g-th image (sorted by name) of every concept.
 
     Score = mean over galleries of the official metric (``score_galleries``): 10x more queries
     than one gallery, which matters with 2 participants and ~4 repetitions per image.
+    n_train_subjects: train on only the first N remaining participants (natural order: 1, 2, ..., 10),
+    to measure how the unseen-participant score grows with the number of training participants.
     """
     if not HELDOUT_SUBJECTS_FILE.exists():
         raise FileNotFoundError(f"{HELDOUT_SUBJECTS_FILE} missing: create it once with make_heldout_subjects_file()")
     concepts = set(json.loads(HELDOUT_FILE.read_text())["images"])
     subjects = set(json.loads(HELDOUT_SUBJECTS_FILE.read_text())["subjects"])
 
+    triggers = {split: window_triggers(loaders[split], ("category", "stem", "subject")) for split in ("train", "val")}
+    train_subjects = sorted({str(t["subject"]) for t in triggers["train"]} - subjects,
+                            key=lambda name: [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", name)])
+    train_subjects = set(train_subjects[:n_train_subjects])
     train_parts, held = [], []
     for split in ("train", "val"):
-        trig = window_triggers(loaders[split], ("category", "stem", "subject"))
+        trig = triggers[split]
         if split == "train" or include_val:
-            idx = [i for i, t in enumerate(trig) if t["category"] not in concepts and str(t["subject"]) not in subjects]
+            idx = [i for i, t in enumerate(trig) if t["category"] not in concepts and str(t["subject"]) in train_subjects]
             train_parts.append(_subset(loaders[split].dataset, idx))
         held.append((split, [(i, t) for i, t in enumerate(trig) if t["category"] in concepts and str(t["subject"]) in subjects]))
 

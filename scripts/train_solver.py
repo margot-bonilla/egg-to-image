@@ -60,6 +60,8 @@ def main():
     parser.add_argument("--holdout-subjects", action="store_true",
                         help="--holdout plus 2 held-out participants (configs/heldout_subjects.json): select on "
                              "unseen people and unseen concepts, like the sealed final (10 galleries, averaged)")
+    parser.add_argument("--train-subjects", type=int, default=None, metavar="N",
+                        help="with --holdout-subjects, train on only the first N remaining participants")
     parser.add_argument("--no-early-stopping", action="store_true",
                         help="with --holdout, don't score the held-out split each epoch (fixed n_epochs)")
     parser.add_argument("--avg-reps", type=int, default=0, metavar="K",
@@ -107,7 +109,8 @@ def main():
     if args.holdout_subjects:
         from src.data.heldout import heldout_subjects_split
 
-        split = heldout_subjects_split(loaders, device, args.batch_size, args.num_workers, include_val=args.use_val)
+        split = heldout_subjects_split(loaders, device, args.batch_size, args.num_workers, include_val=args.use_val,
+                                       n_train_subjects=args.train_subjects)
         loaders["train"], galleries = split["train"], split["galleries"]
     elif args.holdout:
         from src.data.heldout import heldout_split
@@ -183,7 +186,7 @@ def main():
     (args.out / "run_config.json").write_text(json.dumps({
         "command": "python " + " ".join(sys.argv),
         "commit": commit + ("+uncommitted-changes" if dirty else ""),
-        "solver": str(args.solver), "holdout": args.holdout, "holdout_subjects": args.holdout_subjects, "use_val": args.use_val, "dataset": args.dataset,
+        "solver": str(args.solver), "holdout": args.holdout, "holdout_subjects": args.holdout_subjects, "train_subjects": args.train_subjects, "use_val": args.use_val, "dataset": args.dataset,
         "batch_size": args.batch_size, "cache": str(args.cache) if args.cache else None, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
