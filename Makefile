@@ -7,7 +7,7 @@ help:
 	@echo "Available commands:"
 	@echo "  make env              - Python 3.12 venv, dependencies, competition repo, NeuralBench config"
 	@echo "  make test             - Run the offline smoke test suite"
-	@echo "  make train            - Train model and export submission/weights.pt"
+	@echo "  make train            - Synthetic-data demo of the training loop (weights in dist/train_synthetic/)"
 	@echo "  make train-debug      - Train on synthetic warm-up-shaped data via Benchopt (pipeline check only)"
 	@echo "  make zip-submission   - Package submission folder for Codabench upload"
 	@echo "  make test-submission  - Zip, then run it read-only like Codabench does"

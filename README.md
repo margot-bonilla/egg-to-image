@@ -116,7 +116,9 @@ egg-to-image/
 │   ├── models/tinyFM.py        # 🧪 channel-position-conditioned encoder (works for any montage)
 │   ├── losses/retrieval_loss.py# ✅ InfoNCE · ⏳ CosineMSEHybridLoss TODO
 │   ├── metrics.py              # ✅ top-k retrieval
-│   └── train.py                # ❌ broken: imports src/data/dataset.py, which doesn't exist (workstream A)
+│   ├── data/heldout.py         # held-out-concept validation split
+│   ├── data/dataset.py         # synthetic EEG/embedding data for local demos
+│   └── train.py                # synthetic-data training demo (`make train`); real training: scripts/train_solver.py
 ├── notebooks/
 │   ├── quickstart.ipynb        # NeuralBench basics
 │   └── submission_check.ipynb  # loads dist/unzipped like Codabench, checks contract, plots retrieval

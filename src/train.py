@@ -116,9 +116,10 @@ def evaluate(
 def run_training(config_path: str = "configs/default.yaml", epochs: int = 15):
     """Full training pipeline with logging and model checkpointing."""
     repo_root = Path(__file__).resolve().parent.parent
-    submission_dir = repo_root / "submission"
-    submission_dir.mkdir(exist_ok=True)
-    weights_path = submission_dir / "weights.pt"
+    # Synthetic data only: never overwrite the real submission/weights.pt.
+    out_dir = repo_root / "dist" / "train_synthetic"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    weights_path = out_dir / "weights.pt"
 
     # Load configuration
     cfg = {}
