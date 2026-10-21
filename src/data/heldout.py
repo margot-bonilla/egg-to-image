@@ -65,25 +65,40 @@ def make_heldout_file(train_loader, n_concepts: int = 200, seed: int = 0) -> dic
     return heldout
 
 
-def heldout_split(loaders: dict, device: str, batch_size: int | None = None, num_workers: int = 0) -> dict:
-    """Return {"train": loader without held-out concepts, "heldout": held-out image windows}."""
+def _loader(datasets: list, device: str, shuffle: bool, batch_size: int, num_workers: int) -> _OnDevice:
+    dataset = datasets[0] if len(datasets) == 1 else ConcatDataset(datasets)
+    return _OnDevice(DataLoader(dataset, shuffle=shuffle, batch_size=batch_size, num_workers=num_workers,
+                                persistent_workers=num_workers > 0), device)
+
+
+def heldout_split(loaders: dict, device: str, batch_size: int | None = None, num_workers: int = 0,
+                  include_val: bool = False) -> dict:
+    """Return {"train": loader without held-out concepts, "heldout": held-out image windows}.
+
+    include_val: also train on NeuralBench's "val" split (minus held-out concepts), which
+    otherwise only contributes held-out windows: +25% training data on THINGS-EEG2.
+    """
     if not HELDOUT_FILE.exists():
         raise FileNotFoundError(f"{HELDOUT_FILE} missing: create it once with make_heldout_file()")
     images = json.loads(HELDOUT_FILE.read_text())["images"]
     concepts, gallery = set(images), set(images.values())
 
-    train_trig = window_triggers(loaders["train"])
-    train_idx = [i for i, t in enumerate(train_trig) if t["category"] not in concepts]
-    parts = []
+    train_parts, heldout_parts = [], []
     for split in ("train", "val"):
-        trig = train_trig if split == "train" else window_triggers(loaders[split])
-        idx = [i for i, t in enumerate(trig) if t["stem"] in gallery]
-        parts.append(Subset(loaders[split].dataset, idx))
+        trig = window_triggers(loaders[split])
+        if split == "train" or include_val:
+            idx = [i for i, t in enumerate(trig) if t["category"] not in concepts]
+            train_parts.append(Subset(loaders[split].dataset, idx))
+        heldout_parts.append(Subset(loaders[split].dataset, [i for i, t in enumerate(trig) if t["stem"] in gallery]))
 
-    loader_kwargs = {"batch_size": batch_size or loaders["train"].batch_size,
-                     "num_workers": num_workers, "persistent_workers": num_workers > 0}
+    bs = batch_size or loaders["train"].batch_size
     return {
-        "train": _OnDevice(DataLoader(Subset(loaders["train"].dataset, train_idx), shuffle=True,
-                                      **loader_kwargs), device),
-        "heldout": _OnDevice(DataLoader(ConcatDataset(parts), shuffle=False, **loader_kwargs), device),
+        "train": _loader(train_parts, device, True, bs, num_workers),
+        "heldout": _loader(heldout_parts, device, False, bs, num_workers),
     }
+
+
+def train_plus_val(loaders: dict, device: str, batch_size: int | None = None, num_workers: int = 0) -> _OnDevice:
+    """All of NeuralBench's train + val windows (for final models trained on every concept)."""
+    bs = batch_size or loaders["train"].batch_size
+    return _loader([loaders["train"].dataset, loaders["val"].dataset], device, True, bs, num_workers)
