@@ -315,7 +315,8 @@ presentations). So the final model will be trained on Alljoined.
 **REVE, fine-tuned, is the strongest lead.** NeuralBench's reference (84.75% top-5 on THINGS-EEG2,
 above our 0.80) **fine-tunes all of REVE**; we had only tried it frozen (0.245 on Alljoined's
 unseen people with our attention head). Next: fine-tune REVE's top layers, starting from our
-trained head.
+trained head. The whole REVE story, from its architecture to our fine-tuning implementation, with
+diagrams and a slide outline: [architecture_deep_dive.md](architecture_deep_dive.md) §11.
 Details in [architecture_deep_dive.md](architecture_deep_dive.md) §9–§10.
 
 ---
