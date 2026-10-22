@@ -900,7 +900,8 @@ montage). Frozen and **averaged over channels** (the official probe), it reached
 early stopping, channel selection by name, seed ensembles. Out: participant-adversarial training,
 augmentation, joint training with THINGS-EEG2 (A4, B3), `window_norm` on Alljoined (B2: no gain).
 Open: wider convolutions on Alljoined (B5), two-stage training (B4), more fine-tuned REVE members.
-**Current best: an ensemble of our encoders + fine-tuned REVE (0.3075, §11.7).** Spatial attention
+**Current best: two-stage encoder + fine-tuned REVE (B4 + C1 = 0.3237, §11.7); best single model:
+two-stage B4 (0.3083 smoothed).** Spatial attention
 (only if the final's montage differs from Alljoined's), repetition averaging.
 
 ### 10.6 Oct 22: Alljoined re-tests, the channel layout, and REVE's real recipe
@@ -920,8 +921,18 @@ Open: wider convolutions on Alljoined (B5), two-stage training (B4), more fine-t
   test scores only **0.066** top-5 (chance 0.025), through the same 32 channels: the datasets differ
   deeply (lab-grade cap vs Emotiv, 200 vs 100 ms image presentations, so differently timed
   responses). The final model is trained on Alljoined.
-- **Round 8** (queued Oct 22): B5 wider convolutions, B4 two-stage (`--init-from` B3, then
-  Alljoined only, lr 3e-4), B6 = B1 with seed 2 (how much a single run varies with the seed).
+- **Round 8 results** (smoothed best):
+
+  | Run | Change | Smoothed | vs B1 |
+  |---|---|---|---|
+  | B5 | wider convolutions (64/128/256) | 0.2754 | +0.3 (no real gain on Alljoined) |
+  | **B4** | **two-stage**: B3's joint THINGS-EEG2 + Alljoined model (`--init-from`), fine-tuned on Alljoined only, `window_norm`, lr 3e-4 | **0.3083** (raw 0.3137) | **+3.6** |
+  | B6 | B1 with seed 2 | 0.2787 | +0.6: a single run moves by ~±0.5 with the seed |
+
+  **Two-stage training is our best single model.** Mixing THINGS-EEG2 into training hurts (B3), but
+  using it to *pretrain* and then specialising on Alljoined helps a lot: the "learn from more
+  people, then specialise" idea, as with REVE (§11). Round 11 trains two more two-stage models
+  (seeds 2 and 3, each with its own joint stage) for the ensemble.
 
 **Picking channels by name (`channels.json`).** `train_solver.py` now writes the training montage
 next to the weights; `load_model` feeds the model those channels by name from the platform's input
@@ -1131,8 +1142,18 @@ memorising the 16 training participants after ~9 epochs.
 **REVE is most useful as an ensemble member:** averaging two of our encoders gives +0.6, adding
 fine-tuned REVE gives +3.4, our first score above 0.30 on unseen people. The two model families
 make different mistakes (REVE learned from ~25,000 people; our encoder only from these 16).
-Queued (round 10): a gentler fine-tune (lr 3e-5, to overfit less) and a second seed of C1, as more
-REVE ensemble members.
+With the two-stage model B4 (round 8):
+
+| Ensemble | Top-5 | Top-1 |
+|---|---|---|
+| B4 alone | 0.3137 | 0.098 |
+| B4 + B1 + B6 (adding weaker encoders) | 0.2975 | 0.096 |
+| **B4 + C1 (two-stage + fine-tuned REVE)** | **0.3237** | **0.104** |
+| B4 + B1 + B6 + C1 | 0.3212 | 0.105 |
+
+**Ensemble members must be strong:** weaker encoders dilute B4, while REVE adds ~+1 because it is
+different. The final ensemble's shape: several two-stage models (seeds) + fine-tuned REVE models.
+Queued: round 10 (REVE: gentler lr 3e-5, and C1's recipe with seed 2), round 11 (two-stage seeds 2, 3).
 
 ### 11.8 What we expect, and what could go wrong
 

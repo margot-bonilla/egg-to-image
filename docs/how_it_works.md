@@ -315,7 +315,11 @@ presentations). So the final model will be trained on Alljoined.
 **REVE, fine-tuned, as an ensemble member.** NeuralBench's reference (84.75% top-5 on THINGS-EEG2,
 above our 0.80) **fine-tunes REVE**; frozen, it gave 0.245 on Alljoined's unseen people. Fine-tuning
 its top 4 layers gives 0.259 alone, but **averaged with two of our encoders: 0.3075**, against 0.2737
-for our best single encoder, our first score above 0.30 on unseen people. The whole REVE story, from its architecture to our fine-tuning implementation, with
+for our best single encoder, our first score above 0.30 on unseen people.
+
+**Two-stage training is the best single model:** pretrain on THINGS-EEG2 + Alljoined, then fine-tune
+on Alljoined alone: **0.308** (smoothed), +3.6 over Alljoined alone. Combined with fine-tuned REVE:
+**0.324**, our best so far (our target for Nov 5: ≥ 0.35). The whole REVE story, from its architecture to our fine-tuning implementation, with
 diagrams and a slide outline: [architecture_deep_dive.md](architecture_deep_dive.md) §11.
 Details in [architecture_deep_dive.md](architecture_deep_dive.md) §9–§10.
 

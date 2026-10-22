@@ -2846,12 +2846,14 @@ with THINGS-EEG2 (A4, B3),
 no gain). Open: wider convolutions on
 Alljoined (B5), two-stage training (B4),
 more fine-tuned REVE members.
-\textbf{Current best: an ensemble of our
-encoders + fine-tuned REVE (0.3075,
-§11.7).} Spatial attention (only if the
-final\textquotesingle s montage differs
-from Alljoined\textquotesingle s),
-repetition averaging.
+\textbf{Current best: two-stage encoder
++ fine-tuned REVE (B4 + C1 = 0.3237,
+§11.7); best single model: two-stage B4
+(0.3083 smoothed).} Spatial attention
+(only if the final\textquotesingle s
+montage differs from
+Alljoined\textquotesingle s), repetition
+averaging.
 
 \subsubsection{10.6 Oct 22: Alljoined
 re-tests, the channel layout, and
@@ -2899,7 +2901,6 @@ B3 & + THINGS-EEG2 joint training
 }
 
 \begin{itemize}
-\tightlist
 \item
   \texttt{window\_norm} gives nothing on
   Alljoined (it gave +4.1 on
@@ -2921,12 +2922,59 @@ B3 & + THINGS-EEG2 joint training
   timed responses). The final model is
   trained on Alljoined.
 \item
-  \textbf{Round 8} (queued Oct 22): B5
-  wider convolutions, B4 two-stage
-  (\texttt{-\/-init-from} B3, then
-  Alljoined only, lr 3e-4), B6 = B1 with
-  seed 2 (how much a single run varies
-  with the seed).
+  \textbf{Round 8 results} (smoothed
+  best):
+
+  {\def\LTcaptype{none} % do not increment counter
+  \begin{longtable}[]{@{}
+    >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+    >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+    >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+    >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+  \toprule\noalign{}
+  \begin{minipage}[b]{\linewidth}\raggedright
+  Run
+  \end{minipage} &
+  \begin{minipage}[b]{\linewidth}\raggedright
+  Change
+  \end{minipage} &
+  \begin{minipage}[b]{\linewidth}\raggedright
+  Smoothed
+  \end{minipage} &
+  \begin{minipage}[b]{\linewidth}\raggedright
+  vs B1
+  \end{minipage} \\
+  \midrule\noalign{}
+  \endhead
+  \bottomrule\noalign{}
+  \endlastfoot
+  B5 & wider convolutions (64/128/256) &
+  0.2754 & +0.3 (no real gain on
+  Alljoined) \\
+  \textbf{B4} & \textbf{two-stage}:
+  B3\textquotesingle s joint THINGS-EEG2
+  + Alljoined model
+  (\texttt{-\/-init-from}), fine-tuned
+  on Alljoined only,
+  \texttt{window\_norm}, lr 3e-4 &
+  \textbf{0.3083} (raw 0.3137) &
+  \textbf{+3.6} \\
+  B6 & B1 with seed 2 & 0.2787 & +0.6: a
+  single run moves by
+  \textasciitilde±0.5 with the seed \\
+  \end{longtable}
+  }
+
+  \textbf{Two-stage training is our best
+  single model.} Mixing THINGS-EEG2 into
+  training hurts (B3), but using it to
+  \emph{pretrain} and then specialising
+  on Alljoined helps a lot: the "learn
+  from more people, then specialise"
+  idea, as with REVE (§11). Round 11
+  trains two more two-stage models
+  (seeds 2 and 3, each with its own
+  joint stage) for the ensemble.
 \end{itemize}
 
 \textbf{Picking channels by name
@@ -3519,10 +3567,47 @@ REVE gives +3.4, our first score above
 families make different mistakes (REVE
 learned from \textasciitilde25,000
 people; our encoder only from these 16).
-Queued (round 10): a gentler fine-tune
-(lr 3e-5, to overfit less) and a second
-seed of C1, as more REVE ensemble
-members.
+With the two-stage model B4 (round 8):
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.6512}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.1860}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.1628}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Ensemble
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Top-5
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Top-1
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+B4 alone & 0.3137 & 0.098 \\
+B4 + B1 + B6 (adding weaker encoders) &
+0.2975 & 0.096 \\
+\textbf{B4 + C1 (two-stage + fine-tuned
+REVE)} & \textbf{0.3237} &
+\textbf{0.104} \\
+B4 + B1 + B6 + C1 & 0.3212 & 0.105 \\
+\end{longtable}
+}
+
+\textbf{Ensemble members must be
+strong:} weaker encoders dilute B4,
+while REVE adds \textasciitilde+1
+because it is different. The final
+ensemble\textquotesingle s shape:
+several two-stage models (seeds) +
+fine-tuned REVE models. Queued: round 10
+(REVE: gentler lr 3e-5, and
+C1\textquotesingle s recipe with seed
+2), round 11 (two-stage seeds 2, 3).
 
 \subsubsection{11.8 What we expect, and
 what could go
