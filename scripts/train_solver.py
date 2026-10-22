@@ -211,6 +211,8 @@ def main():
 
     (args.out / "submission.py").write_text(solver_source)
     solver.save_model(model, args.out.resolve())
+    if meta.get("ch_names"):  # the training montage: lets inference pick these channels by name
+        (args.out / "channels.json").write_text(json.dumps({"ch_names": [str(n) for n in meta["ch_names"]]}))
     # Audit record (left out of the ZIP by `make zip-submission`, like other run_config* files).
     commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=REPO).stdout.strip()
     dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
