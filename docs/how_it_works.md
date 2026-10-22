@@ -312,10 +312,10 @@ Neither beats Alljoined alone. Oct 22 re-tests with smoothed early stopping (bes
 test (chance 0.025). The two datasets differ too much (lab-grade cap vs Emotiv, 200 vs 100 ms
 presentations). So the final model will be trained on Alljoined.
 
-**REVE, fine-tuned, is the strongest lead.** NeuralBench's reference (84.75% top-5 on THINGS-EEG2,
-above our 0.80) **fine-tunes all of REVE**; we had only tried it frozen (0.245 on Alljoined's
-unseen people with our attention head). Next: fine-tune REVE's top layers, starting from our
-trained head. The whole REVE story, from its architecture to our fine-tuning implementation, with
+**REVE, fine-tuned, as an ensemble member.** NeuralBench's reference (84.75% top-5 on THINGS-EEG2,
+above our 0.80) **fine-tunes REVE**; frozen, it gave 0.245 on Alljoined's unseen people. Fine-tuning
+its top 4 layers gives 0.259 alone, but **averaged with two of our encoders: 0.3075**, against 0.2737
+for our best single encoder, our first score above 0.30 on unseen people. The whole REVE story, from its architecture to our fine-tuning implementation, with
 diagrams and a slide outline: [architecture_deep_dive.md](architecture_deep_dive.md) §11.
 Details in [architecture_deep_dive.md](architecture_deep_dive.md) §9–§10.
 

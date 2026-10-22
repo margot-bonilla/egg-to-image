@@ -2845,9 +2845,10 @@ with THINGS-EEG2 (A4, B3),
 \texttt{window\_norm} on Alljoined (B2:
 no gain). Open: wider convolutions on
 Alljoined (B5), two-stage training (B4),
-\textbf{fine-tuned REVE} (stage 2, the
-strongest lead), a REVE + encoder
-ensemble, spatial attention (only if the
+more fine-tuned REVE members.
+\textbf{Current best: an ensemble of our
+encoders + fine-tuned REVE (0.3075,
+§11.7).} Spatial attention (only if the
 final\textquotesingle s montage differs
 from Alljoined\textquotesingle s),
 repetition averaging.
@@ -3217,10 +3218,10 @@ model}\label{four-ways-to-use-a-pretrained-model}
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2870}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1111}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2593}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3426}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2743}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1062}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2478}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3717}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Approach
@@ -3247,9 +3248,10 @@ features) & \textasciitilde0.13
 (on cached tokens) & \textbf{0.245}
 (Alljoined, unseen people) \\
 3. Stage 2: top 4 layers + head (C1) &
-12.6M + 6.8M & \textasciitilde15--25 min
-(on layer-18 tokens) & running (Oct
-22) \\
+12.6M + 6.8M & \textasciitilde8 min (on
+layer-18 tokens) & \textbf{0.2592}
+smoothed (best epoch 9; overfits
+after) \\
 4. Full fine-tuning & 69M + head &
 \textasciitilde1--1.5 h & not tried
 (NeuralBench: 84.75\% on THINGS-EEG2,
@@ -3435,10 +3437,13 @@ batch-64 timing) \\
 Alljoined participants, top-5
 subject-aggregated)}\label{results-unseen-alljoined-participants-top-5-subject-aggregated}
 
+Single models (best smoothed held-out
+score during training):
+
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.6604}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.3396}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.7674}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.2326}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Model
@@ -3450,15 +3455,74 @@ Score
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Our encoder from scratch (B1) & 0.2725
-(smoothed) \\
+Our encoder from scratch (B1) &
+0.2725 \\
 Frozen REVE + attention head (A3, stage
 1) & 0.245 \\
-\textbf{REVE top-4 fine-tuned + head
-(C1, stage 2)} & \textbf{running (Oct 22
-evening)} \\
+REVE top-4 fine-tuned + head (C1, stage
+2) & 0.2592 (epoch 9) \\
 \end{longtable}
 }
+
+C1\textquotesingle s curve: 0.248 (epoch
+4) → \textbf{0.259 (epoch 9)} → 0.223
+(epoch 14) while the training loss kept
+falling (5.17 → 4.6): fine-tuning helps
+over frozen REVE (+1.4), but the top
+layers start memorising the 16 training
+participants after \textasciitilde9
+epochs.
+
+\textbf{Ensembles}
+(\texttt{eval\_local.py} on raw windows,
+the saved models; mean of L2-normalised
+predictions):
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.5532}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1702}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1277}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1489}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Ensemble
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Top-5
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Top-1
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+vs B1 alone
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+B1 alone & 0.2737 & 0.079 & -- \\
+B1 + B2 (two of our encoders) & 0.2800 &
+0.080 & +0.6 \\
+B1 + C1 (our encoder + fine-tuned REVE)
+& 0.2888 & 0.104 & +1.5 \\
+\textbf{B1 + B2 + C1} & \textbf{0.3075}
+& 0.096 & \textbf{+3.4} \\
+\end{longtable}
+}
+
+\textbf{REVE is most useful as an
+ensemble member:} averaging two of our
+encoders gives +0.6, adding fine-tuned
+REVE gives +3.4, our first score above
+0.30 on unseen people. The two model
+families make different mistakes (REVE
+learned from \textasciitilde25,000
+people; our encoder only from these 16).
+Queued (round 10): a gentler fine-tune
+(lr 3e-5, to overfit less) and a second
+seed of C1, as more REVE ensemble
+members.
 
 \subsubsection{11.8 What we expect, and
 what could go
@@ -3485,11 +3549,12 @@ wrong}\label{what-we-expect-and-what-could-go-wrong}
   per model makes large ensembles heavy
   to upload.
 \item
-  \textbf{Next steps if it works:} more
-  layers (K = 6--8), then full
-  fine-tuning on a subset; the final
-  model trained on all 20 participants;
-  a seed ensemble.
+  \textbf{Next steps:} gentler
+  fine-tuning (lower lr, fewer layers,
+  regularisation toward the pretrained
+  weights); more REVE members for the
+  ensemble; the final ensemble retrained
+  on all 20 participants.
 \end{itemize}
 
 \subsubsection{11.9 Slide outline (10
@@ -3543,8 +3608,12 @@ minutes)}\label{slide-outline-10-minutes}
   trained model, selection on unseen
   people.
 \item
-  \textbf{Results} (§11.7) and what
-  comes next.
+  \textbf{Results} (§11.7): fine-tuned
+  REVE alone 0.259 (frozen 0.245), but
+  in an ensemble with our encoders
+  \textbf{0.3075}, against 0.2737 for
+  our best single encoder: the two
+  families complement each other.
 \end{enumerate}
 
 \end{document}

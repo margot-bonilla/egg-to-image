@@ -899,9 +899,9 @@ montage). Frozen and **averaged over channels** (the official probe), it reached
 (Updated Oct 22.) In: training on Alljoined (16 → all 20 participants for the final), smoothed
 early stopping, channel selection by name, seed ensembles. Out: participant-adversarial training,
 augmentation, joint training with THINGS-EEG2 (A4, B3), `window_norm` on Alljoined (B2: no gain).
-Open: wider convolutions on Alljoined (B5), two-stage training (B4), **fine-tuned REVE** (stage 2,
-the strongest lead), a REVE + encoder ensemble, spatial attention (only if the final's montage
-differs from Alljoined's), repetition averaging.
+Open: wider convolutions on Alljoined (B5), two-stage training (B4), more fine-tuned REVE members.
+**Current best: an ensemble of our encoders + fine-tuned REVE (0.3075, §11.7).** Spatial attention
+(only if the final's montage differs from Alljoined's), repetition averaging.
 
 ### 10.6 Oct 22: Alljoined re-tests, the channel layout, and REVE's real recipe
 
@@ -1039,7 +1039,7 @@ flowchart LR
 |---|---|---|---|
 | 1. Frozen probe (mean over channels) | a linear layer | seconds (on cached features) | ~0.13 (THINGS-EEG2 test) |
 | 2. Stage 1: tokens + attention head (A3) | the head (6.8M) | ~1 min (on cached tokens) | **0.245** (Alljoined, unseen people) |
-| 3. Stage 2: top 4 layers + head (C1) | 12.6M + 6.8M | ~15–25 min (on layer-18 tokens) | running (Oct 22) |
+| 3. Stage 2: top 4 layers + head (C1) | 12.6M + 6.8M | ~8 min (on layer-18 tokens) | **0.2592** smoothed (best epoch 9; overfits after) |
 | 4. Full fine-tuning | 69M + head | ~1–1.5 h | not tried (NeuralBench: 84.75% on THINGS-EEG2, seen people) |
 
 **Why stage 2 starts from stage 1 (LP-FT).** Fine-tuning a pretrained network with a *randomly
@@ -1107,11 +1107,32 @@ flowchart TB
 
 ### 11.7 Results (unseen Alljoined participants, top-5 subject-aggregated)
 
+Single models (best smoothed held-out score during training):
+
 | Model | Score |
 |---|---|
-| Our encoder from scratch (B1) | 0.2725 (smoothed) |
+| Our encoder from scratch (B1) | 0.2725 |
 | Frozen REVE + attention head (A3, stage 1) | 0.245 |
-| **REVE top-4 fine-tuned + head (C1, stage 2)** | **running (Oct 22 evening)** |
+| REVE top-4 fine-tuned + head (C1, stage 2) | 0.2592 (epoch 9) |
+
+C1's curve: 0.248 (epoch 4) → **0.259 (epoch 9)** → 0.223 (epoch 14) while the training loss kept
+falling (5.17 → 4.6): fine-tuning helps over frozen REVE (+1.4), but the top layers start
+memorising the 16 training participants after ~9 epochs.
+
+**Ensembles** (`eval_local.py` on raw windows, the saved models; mean of L2-normalised predictions):
+
+| Ensemble | Top-5 | Top-1 | vs B1 alone |
+|---|---|---|---|
+| B1 alone | 0.2737 | 0.079 | – |
+| B1 + B2 (two of our encoders) | 0.2800 | 0.080 | +0.6 |
+| B1 + C1 (our encoder + fine-tuned REVE) | 0.2888 | 0.104 | +1.5 |
+| **B1 + B2 + C1** | **0.3075** | 0.096 | **+3.4** |
+
+**REVE is most useful as an ensemble member:** averaging two of our encoders gives +0.6, adding
+fine-tuned REVE gives +3.4, our first score above 0.30 on unseen people. The two model families
+make different mistakes (REVE learned from ~25,000 people; our encoder only from these 16).
+Queued (round 10): a gentler fine-tune (lr 3e-5, to overfit less) and a second seed of C1, as more
+REVE ensemble members.
 
 ### 11.8 What we expect, and what could go wrong
 
@@ -1121,8 +1142,8 @@ flowchart TB
 - **Risks:** 16 participants may be too few to fine-tune 12.6M pretrained parameters without
   overfitting (early stopping on unseen people guards against it); the 120 Hz input lacks the
   60–100 Hz band REVE was pretrained with; ~77 MB per model makes large ensembles heavy to upload.
-- **Next steps if it works:** more layers (K = 6–8), then full fine-tuning on a subset; the final
-  model trained on all 20 participants; a seed ensemble.
+- **Next steps:** gentler fine-tuning (lower lr, fewer layers, regularisation toward the pretrained
+  weights); more REVE members for the ensemble; the final ensemble retrained on all 20 participants.
 
 ### 11.9 Slide outline (10 minutes)
 
@@ -1141,5 +1162,6 @@ flowchart TB
    ship only what changed.
 9. **Checks that make it trustworthy:** identical predictions at initialisation, exported model =
    trained model, selection on unseen people.
-10. **Results** (§11.7) and what comes next.
+10. **Results** (§11.7): fine-tuned REVE alone 0.259 (frozen 0.245), but in an ensemble with our
+    encoders **0.3075**, against 0.2737 for our best single encoder: the two families complement each other.
 

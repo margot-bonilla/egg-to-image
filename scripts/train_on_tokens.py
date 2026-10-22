@@ -130,7 +130,8 @@ def main():
     commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=REPO).stdout.strip()
     history = getattr(solver, "history", [])
     scored = [r for r in history if "heldout" in r]
-    best = max(scored, key=lambda r: r["heldout"]) if scored else {}
+    key = "heldout_smooth" if any("heldout_smooth" in r for r in scored) else "heldout"  # the epoch fit kept
+    best = max((r for r in scored if key in r), key=lambda r: r[key]) if scored else {}
     (args.out / "run_config.json").write_text(json.dumps({
         "command": "python " + " ".join(sys.argv), "commit": commit, "tokens": str(args.tokens),
         "dataset": args.dataset, "holdout_subjects": args.holdout_subjects, "use_val": args.use_val,
@@ -138,6 +139,7 @@ def main():
         "init_head": str(args.init_head) if args.init_head else None, "train_items": len(train_loader.dataset),
         "fit_minutes": round((time.time() - start) / 60, 1), "epochs_run": len(history),
         "best_epoch": best.get("epoch"), "best_heldout_top5_sa": round(best["heldout"], 4) if best else None,
+        "best_heldout_smooth": round(best["heldout_smooth"], 4) if "heldout_smooth" in best else None,
         "resumed_after_epoch": getattr(solver, "resumed_from", None),
     }, indent=2))
     (args.out / "run_config_curve.json").write_text(json.dumps(history, indent=1))
