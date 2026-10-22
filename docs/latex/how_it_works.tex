@@ -584,7 +584,7 @@ are only used locally, by
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \subsection{8. Where we are (Oct
-21)}\label{where-we-are-oct-21}
+22)}\label{where-we-are-oct-22}
 
 \subsubsection{Warm-up leaderboard
 (THINGS-EEG2: same 10 people, 63
@@ -592,10 +592,10 @@ channels)}\label{warm-up-leaderboard-things-eeg2-same-10-people-63-channels}
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0822}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4932}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1096}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3151}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0698}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4884}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0814}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3605}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Date
@@ -631,8 +631,12 @@ Oct 21 & \textbf{Final: R6 recipe,
 (top-1 0.44)} \\
 Oct 21 & R12: \textbf{wider
 convolutions} (64/128/256 filters) &
-\textbf{0.615} & (overnight: 3-seed
-final, forecast ≈ 0.80) \\
+\textbf{0.615} & \\
+Oct 22 & \textbf{Final: R12 recipe
+(wider convolutions), 3-seed ensemble} &
+-- & \textbf{local 0.8005 (top-1
+0.4655)}; upload pending a Codabench
+outage \\
 \end{longtable}
 }
 
@@ -650,11 +654,18 @@ stopping, to re-test), a wider head only
 people, 32
 channels}\label{the-final-phase-unseen-people-32-channels}
 
-The sealed final (Oct 28 -- Nov 21) is a
-private \textbf{Alljoined} cohort:
-\textbf{11 new participants, 32-channel
-Emotiv headset}, new images. We now
-measure exactly that:
+The sealed final is a private
+\textbf{Alljoined} cohort: \textbf{11
+new participants, 32-channel Emotiv
+headset}, new images. Updated schedule
+(organisers, Oct 22): warm-up and
+registration close \textbf{Nov 1}; the
+sealed phase runs \textbf{Nov 5 -- Nov
+21} with only \textbf{5 sealed uploads
+per participant in total}, so local
+validation decides what we upload. We
+now measure exactly the
+final\textquotesingle s setting:
 
 \begin{itemize}
 \tightlist
@@ -752,17 +763,60 @@ attention-pooling head & 0.245 \\
 \end{longtable}
 }
 
-Neither beats Alljoined alone yet.
-THINGS-EEG2 as-is differs too much
-(lab-grade cap vs Emotiv, amplitudes,
-200 vs 100 ms presentations); next:
-joint training with per-window
-normalisation, and two-stage training
-(both datasets, then Alljoined only).
-Frozen REVE with channel tokens does far
-better than averaged (0.13), but not
-better than our encoder; next: ensemble
-it with our encoder. Details in
+Neither beats Alljoined alone. Oct 22
+re-tests with smoothed early stopping
+(best 3-epoch mean):
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.0811}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4189}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Run
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Change
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Unseen-people score (smoothed)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+B1 & Alljoined only (16 participants) &
+\textbf{0.2725} \\
+B2 & + per-window normalisation & 0.2696
+(no gain here, unlike
+THINGS-EEG2\textquotesingle s +4.1) \\
+B3 & + THINGS-EEG2 joint training +
+per-window normalisation & 0.2471 \\
+\end{longtable}
+}
+
+\textbf{THINGS-EEG2
+doesn\textquotesingle t help Alljoined}:
+an Alljoined model even scores only
+0.066 on THINGS-EEG2\textquotesingle s
+test (chance 0.025). The two datasets
+differ too much (lab-grade cap vs
+Emotiv, 200 vs 100 ms presentations). So
+the final model will be trained on
+Alljoined.
+
+\textbf{REVE, fine-tuned, is the
+strongest lead.}
+NeuralBench\textquotesingle s reference
+(84.75\% top-5 on THINGS-EEG2, above our
+0.80) \textbf{fine-tunes all of REVE};
+we had only tried it frozen (0.245 on
+Alljoined\textquotesingle s unseen
+people with our attention head). Next:
+fine-tune REVE\textquotesingle s top
+layers, starting from our trained head.
+Details in
 \href{architecture_deep_dive.pdf}{architecture\_deep\_dive.md}
 §9--§10.
 

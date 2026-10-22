@@ -205,9 +205,9 @@ Contents
   new people and new headsets (in
   progress)}
 \item
-  \hyperref[10-unseen-participants-and-alljoined-results-and-new-tools-oct-21]{Unseen
+  \hyperref[10-unseen-participants-and-alljoined-results-and-new-tools-oct-2122]{Unseen
   participants and Alljoined: results
-  and new tools (Oct 21)}
+  and new tools (Oct 21--22)}
 \end{enumerate}
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
@@ -1351,13 +1351,13 @@ Codabench = leaderboard score. Sources:
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1117}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1489}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2287}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1330}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0851}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0479}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2447}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1066}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1421}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2284}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1218}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0964}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0711}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2335}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Run
@@ -1500,9 +1500,18 @@ all concepts & R6 recipe, all concepts +
 val, seeds 1--3, ensembled
 (\texttt{final\_r6\_ens3}) & n/a &
 \textbf{0.7760} (seeds 0.755--0.766) &
-\textbf{0.78} (top-1 0.44) & Current
-best (submission 1007631, rank 60);
-trained at \texttt{95e45ea} \\
+\textbf{0.78} (top-1 0.44) & Submission
+1007631, rank 60; trained at
+\texttt{95e45ea} \\
+\textbf{Final R12 recipe} & wider
+convolutions on all concepts & R12
+recipe, 24 epochs, all concepts + val,
+seeds 1--3 (\texttt{final\_wide\_ens3})
+& n/a & \textbf{0.8005} (seeds
+0.776--0.784), top-1 0.4655 & pending
+(Codabench outage, Oct 22) & Best
+warm-up model; \textasciitilde3.2 h per
+seed \\
 \end{longtable}
 }
 
@@ -1512,12 +1521,8 @@ uploaded models: 0.09 (EEGNet) → 0.22 →
 ensemble) → \textbf{0.44} (final R6
 recipe).
 
-Overnight Oct 21→22: a 3-seed final of
-the R12 recipe (wider convolutions, 24
-epochs, \texttt{logs/round6.sh}),
-packaged only if it beats 0.776 on the
-local test. Unseen-participant
-experiments are in §10.
+Unseen-participant experiments are in
+§10.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
@@ -1608,10 +1613,10 @@ code}\label{idea-paper-where-in-our-code}
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2825}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2768}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2034}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2373}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2841}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2784}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1989}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2386}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Idea in our code
@@ -1736,6 +1741,10 @@ participants, REVE) & Kolesnikov et al.
 2020 (BiT) \textbf{(unverified)} &
 ObjectNet figure & §10.1 participant
 curve \\
+Fine-tune after fitting the head on the
+frozen backbone (LP-FT) & Kumar et al.
+2022 \textbf{(unverified)} & & REVE
+stage 1 → stage 2 (§10.6) \\
 Participant-adversarial training (DANN,
 domain confusion) & Ganin \& Lempitsky
 2015; Tzeng et al. 2015; Elazar \&
@@ -2482,7 +2491,7 @@ happened)}\label{the-plan-as-of-oct-20-see-10-for-what-happened}
 
 \subsection{10. Unseen participants and
 Alljoined: results and new tools (Oct
-21)}\label{unseen-participants-and-alljoined-results-and-new-tools-oct-21}
+21--22)}\label{unseen-participants-and-alljoined-results-and-new-tools-oct-2122}
 
 \subsubsection{10.1 What helps on unseen
 people (THINGS-EEG2, round
@@ -2798,19 +2807,170 @@ official probe), it reached only
 the final
 recipe}\label{where-this-leaves-the-final-recipe}
 
-In: per-window normalisation (clear on
-THINGS-EEG2, to confirm on Alljoined),
-wider convolutions (if the slowdown is
-affordable), smoothed early stopping.
-Out: participant-adversarial training,
-augmentation, joint training as-is (A4).
-Open: joint training with
-\texttt{window\_norm} or two-stage, a
-REVE + encoder ensemble, spatial
-attention (only needed if the
+(Updated Oct 22.) In: training on
+Alljoined (16 → all 20 participants for
+the final), smoothed early stopping,
+channel selection by name, seed
+ensembles. Out: participant-adversarial
+training, augmentation, joint training
+with THINGS-EEG2 (A4, B3),
+\texttt{window\_norm} on Alljoined (B2:
+no gain). Open: wider convolutions on
+Alljoined (B5), two-stage training (B4),
+\textbf{fine-tuned REVE} (stage 2, the
+strongest lead), a REVE + encoder
+ensemble, spatial attention (only if the
 final\textquotesingle s montage differs
 from Alljoined\textquotesingle s),
-repetition averaging (re-test with
-smoothed early stopping).
+repetition averaging.
+
+\subsubsection{10.6 Oct 22: Alljoined
+re-tests, the channel layout, and
+REVE\textquotesingle s real
+recipe}\label{oct-22-alljoined-re-tests-the-channel-layout-and-reves-real-recipe}
+
+\textbf{Round 7} (Alljoined, 4 unseen
+participants,
+\texttt{smooth=3\ patience=10}; scores =
+best 3-epoch mean):
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0779}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.5195}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2338}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1688}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Run
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Change
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Smoothed best
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Mean of last 10 epochs
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+B1 & R6 recipe on 16 Alljoined
+participants & \textbf{0.2725} (epoch
+22) & 0.252 \\
+B2 & + \texttt{window\_norm} & 0.2696
+(epoch 19) & 0.254 \\
+B3 & + THINGS-EEG2 joint training
+(\texttt{-\/-extra-cache}) +
+\texttt{window\_norm} & 0.2471 (epoch
+15) & 0.237 \\
+\end{longtable}
+}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{window\_norm} gives nothing on
+  Alljoined (it gave +4.1 on
+  THINGS-EEG2\textquotesingle s unseen
+  people), probably because Emotiv
+  recordings vary less in amplitude, or
+  because the pipeline\textquotesingle s
+  per-recording scaling already removes
+  it.
+\item
+  \textbf{Joint training hurts even with
+  normalisation.} An Alljoined model on
+  THINGS-EEG2\textquotesingle s warm-up
+  test scores only \textbf{0.066} top-5
+  (chance 0.025), through the same 32
+  channels: the datasets differ deeply
+  (lab-grade cap vs Emotiv, 200 vs 100
+  ms image presentations, so differently
+  timed responses). The final model is
+  trained on Alljoined.
+\item
+  \textbf{Round 8} (queued Oct 22): B5
+  wider convolutions, B4 two-stage
+  (\texttt{-\/-init-from} B3, then
+  Alljoined only, lr 3e-4), B6 = B1 with
+  seed 2 (how much a single run varies
+  with the seed).
+\end{itemize}
+
+\textbf{Picking channels by name
+(\texttt{channels.json}).}
+\texttt{train\_solver.py} now writes the
+training montage next to the weights;
+\texttt{load\_model} feeds the model
+those channels by name from the
+platform\textquotesingle s input
+(case-insensitive, any order),
+zero-filling any missing channel with a
+warning. Submissions without
+\texttt{channels.json} behave as before.
+A dry-run submission
+(\texttt{submissions/dryrun\_alljoined32\_b1}:
+B1 + \texttt{channels.json}) runs on the
+warm-up\textquotesingle s 63-channel
+input and reproduces
+B1\textquotesingle s Alljoined score
+(0.2737): it checks the final-phase
+mechanics on Codabench before the sealed
+phase.
+
+\textbf{Smoothed early stopping}
+(\texttt{Solver.smooth=k}): best-epoch
+selection and patience on the mean of
+the last k held-out scores, only for
+full windows; \texttt{run\_config.json}
+reports the epoch kept.
+\textbf{Two-stage training:}
+\texttt{train\_solver.py\ -\/-init-from\ WEIGHTS}.
+
+\textbf{REVE\textquotesingle s real
+recipe.} NeuralBench reports
+frozen-looking "probe" numbers for REVE
+(84.75\% top-5 on THINGS-EEG2, above our
+best warm-up model), but its config
+(\texttt{neuralbench/models/reve.yaml})
+leaves no layer frozen: it is
+\textbf{full fine-tuning}
+(\texttt{finetune\_mean} in
+\texttt{defaults/downstream\_wrappers.yaml}):
+final-layer tokens averaged, a linear
+layer to the 1536-d embedding, CLIP
+loss, AdamW lr 1e-4, weight decay 0.05,
+one-cycle schedule, batch 64, up to 40
+epochs, on NeuralBench\textquotesingle s
+own REVE preprocessing (200 Hz,
+0.5--99.5 Hz, standard scaling, clamp
+15; a Codabench submission instead
+receives the
+competition\textquotesingle s 120 Hz
+input). NeuralBench also ships
+\textbf{LP-FT} (Kumar et al., 2022): fit
+the head on the frozen backbone, then
+fine-tune everything, which is exactly
+our stage 1 → stage 2. REVE has 22
+residual transformer layers of 3.14M
+parameters; \textbf{stage 2} fine-tunes
+the top layers from cached intermediate
+tokens (full fine-tuning costs
+\textasciitilde1--1.5 h per epoch on the
+Mac).
+
+\textbf{Competition update (Oct 22).}
+Warm-up and registration close Nov 1;
+sealed phase Nov 5--21 with \textbf{5
+sealed uploads per participant in
+total}. Local validation therefore
+decides uploads again: finalists get
+several seeds (and possibly participant
+cross-validation) before an upload;
+final picks are seed ensembles (more
+robust in the reproducibility audit).
 
 \end{document}

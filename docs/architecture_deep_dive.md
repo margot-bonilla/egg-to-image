@@ -21,7 +21,7 @@ Contents
 7. [Paper map and bibliography](#7-paper-map-and-bibliography)
 8. [Teaching kit](#8-teaching-kit)
 9. [Next: new people and new headsets (in progress)](#9-next-new-people-and-new-headsets-in-progress)
-10. [Unseen participants and Alljoined: results and new tools (Oct 21)](#10-unseen-participants-and-alljoined-results-and-new-tools-oct-21)
+10. [Unseen participants and Alljoined: results and new tools (Oct 21–22)](#10-unseen-participants-and-alljoined-results-and-new-tools-oct-2122)
 
 ---
 
@@ -454,14 +454,13 @@ Sources: `RESULTS.md`, `logs/overnight_summary.md`, `logs/round2.status`, `logs/
 | R11 batch 1024 | Even more negatives | R9 + `--batch-size 1024 lr=4e-3` | 0.586 (epoch 27) | – | – | ≈ R6 in **62 instead of 105 min**: candidate with more epochs |
 | **R12 wider convs** | The encoder is capacity-limited | `temporal_filters=64 spatial_filters=128 sep_filters=256` (2.26M params) | **0.615** (epoch 22, stopped at 27) | – | – | **+2.5**: keep (5–6 points ahead of R6 at every epoch); ~2.6× slower per epoch |
 | R13 wider head | Same, in the head | `hidden_dim=1024 head_blocks=1` | 0.529 at epoch 17 (R6 there: 0.545) | – | – | Trailing: cancelled, as was R14 (both) |
-| **Final R6 recipe** | 40 epochs on all concepts | R6 recipe, all concepts + val, seeds 1–3, ensembled (`final_r6_ens3`) | n/a | **0.7760** (seeds 0.755–0.766) | **0.78** (top-1 0.44) | Current best (submission 1007631, rank 60); trained at `95e45ea` |
+| **Final R6 recipe** | 40 epochs on all concepts | R6 recipe, all concepts + val, seeds 1–3, ensembled (`final_r6_ens3`) | n/a | **0.7760** (seeds 0.755–0.766) | **0.78** (top-1 0.44) | Submission 1007631, rank 60; trained at `95e45ea` |
+| **Final R12 recipe** | wider convolutions on all concepts | R12 recipe, 24 epochs, all concepts + val, seeds 1–3 (`final_wide_ens3`) | n/a | **0.8005** (seeds 0.776–0.784), top-1 0.4655 | pending (Codabench outage, Oct 22) | Best warm-up model; ~3.2 h per seed |
 
 Top-1 subject-aggregated for the uploaded models: 0.09 (EEGNet) → 0.22 → 0.34 (R2) → 0.37
 (R5) → 0.40 (final ensemble) → **0.44** (final R6 recipe).
 
-Overnight Oct 21→22: a 3-seed final of the R12 recipe (wider convolutions, 24 epochs,
-`logs/round6.sh`), packaged only if it beats 0.776 on the local test. Unseen-participant
-experiments are in §10.
+Unseen-participant experiments are in §10.
 
 ---
 
@@ -524,6 +523,7 @@ flowchart LR
 | Held-out participants (cross-subject validation) | standard practice; motivated by the sealed final's unseen subjects | | `heldout_subjects_split` (§9.1) |
 | EEG foundation model: frozen + channel-averaged (weak), then tokens + attention-pooling head | El Ouahidi et al. 2025 (REVE) | | `submission/reve_submission.py`, `scripts/cache_reve_tokens.py` (§10.4) |
 | More pretraining data matters most out of distribution (motivates more participants, REVE) | Kolesnikov et al. 2020 (BiT) **(unverified)** | ObjectNet figure | §10.1 participant curve |
+| Fine-tune after fitting the head on the frozen backbone (LP-FT) | Kumar et al. 2022 **(unverified)** | | REVE stage 1 → stage 2 (§10.6) |
 | Participant-adversarial training (DANN, domain confusion) | Ganin & Lempitsky 2015; Tzeng et al. 2015; Elazar & Goldberg 2018 **(unverified)** | | `SubjectAdversary`, `adversarial_weight` (§10.3) |
 | Final-phase data family | Xu et al. 2024 (Alljoined1); Xu et al. 2025 (Alljoined-1.6M) | Dataset papers | issues #4, #21 |
 | A convolution + transformer EEG encoder (candidate for #12) | Song et al. 2023 (EEG Conformer) | Architecture figure | not implemented |
@@ -804,7 +804,7 @@ the Apple GPU for this shape; a clean benchmark needs an idle GPU (to do).
 
 ---
 
-## 10. Unseen participants and Alljoined: results and new tools (Oct 21)
+## 10. Unseen participants and Alljoined: results and new tools (Oct 21–22)
 
 ### 10.1 What helps on unseen people (THINGS-EEG2, round 3)
 
@@ -887,8 +887,58 @@ montage). Frozen and **averaged over channels** (the official probe), it reached
 
 ### 10.5 Where this leaves the final recipe
 
-In: per-window normalisation (clear on THINGS-EEG2, to confirm on Alljoined), wider convolutions
-(if the slowdown is affordable), smoothed early stopping. Out: participant-adversarial training,
-augmentation, joint training as-is (A4). Open: joint training with `window_norm` or two-stage, a
-REVE + encoder ensemble, spatial attention (only needed if the final's montage differs from
-Alljoined's), repetition averaging (re-test with smoothed early stopping).
+(Updated Oct 22.) In: training on Alljoined (16 → all 20 participants for the final), smoothed
+early stopping, channel selection by name, seed ensembles. Out: participant-adversarial training,
+augmentation, joint training with THINGS-EEG2 (A4, B3), `window_norm` on Alljoined (B2: no gain).
+Open: wider convolutions on Alljoined (B5), two-stage training (B4), **fine-tuned REVE** (stage 2,
+the strongest lead), a REVE + encoder ensemble, spatial attention (only if the final's montage
+differs from Alljoined's), repetition averaging.
+
+### 10.6 Oct 22: Alljoined re-tests, the channel layout, and REVE's real recipe
+
+**Round 7** (Alljoined, 4 unseen participants, `smooth=3 patience=10`; scores = best 3-epoch mean):
+
+| Run | Change | Smoothed best | Mean of last 10 epochs |
+|---|---|---|---|
+| B1 | R6 recipe on 16 Alljoined participants | **0.2725** (epoch 22) | 0.252 |
+| B2 | + `window_norm` | 0.2696 (epoch 19) | 0.254 |
+| B3 | + THINGS-EEG2 joint training (`--extra-cache`) + `window_norm` | 0.2471 (epoch 15) | 0.237 |
+
+- `window_norm` gives nothing on Alljoined (it gave +4.1 on THINGS-EEG2's unseen people), probably
+  because Emotiv recordings vary less in amplitude, or because the pipeline's per-recording scaling
+  already removes it.
+- **Joint training hurts even with normalisation.** An Alljoined model on THINGS-EEG2's warm-up
+  test scores only **0.066** top-5 (chance 0.025), through the same 32 channels: the datasets differ
+  deeply (lab-grade cap vs Emotiv, 200 vs 100 ms image presentations, so differently timed
+  responses). The final model is trained on Alljoined.
+- **Round 8** (queued Oct 22): B5 wider convolutions, B4 two-stage (`--init-from` B3, then
+  Alljoined only, lr 3e-4), B6 = B1 with seed 2 (how much a single run varies with the seed).
+
+**Picking channels by name (`channels.json`).** `train_solver.py` now writes the training montage
+next to the weights; `load_model` feeds the model those channels by name from the platform's input
+(case-insensitive, any order), zero-filling any missing channel with a warning. Submissions without
+`channels.json` behave as before. A dry-run submission (`submissions/dryrun_alljoined32_b1`: B1 +
+`channels.json`) runs on the warm-up's 63-channel input and reproduces B1's Alljoined score
+(0.2737): it checks the final-phase mechanics on Codabench before the sealed phase.
+
+**Smoothed early stopping** (`Solver.smooth=k`): best-epoch selection and patience on the mean of
+the last k held-out scores, only for full windows; `run_config.json` reports the epoch kept.
+**Two-stage training:** `train_solver.py --init-from WEIGHTS`.
+
+**REVE's real recipe.** NeuralBench reports frozen-looking "probe" numbers for REVE (84.75% top-5
+on THINGS-EEG2, above our best warm-up model), but its config (`neuralbench/models/reve.yaml`)
+leaves no layer frozen: it is **full fine-tuning** (`finetune_mean` in
+`defaults/downstream_wrappers.yaml`): final-layer tokens averaged, a linear layer to the 1536-d
+embedding, CLIP loss, AdamW lr 1e-4, weight decay 0.05, one-cycle schedule, batch 64, up to 40
+epochs, on NeuralBench's own REVE preprocessing (200 Hz, 0.5–99.5 Hz, standard scaling, clamp 15;
+a Codabench submission instead receives the competition's 120 Hz input). NeuralBench also ships
+**LP-FT** (Kumar et al., 2022): fit the head on the frozen backbone, then fine-tune everything,
+which is exactly our stage 1 → stage 2. REVE has 22 residual transformer layers of 3.14M parameters;
+**stage 2** fine-tunes the top layers from cached intermediate tokens (full fine-tuning costs
+~1–1.5 h per epoch on the Mac).
+
+**Competition update (Oct 22).** Warm-up and registration close Nov 1; sealed phase Nov 5–21 with
+**5 sealed uploads per participant in total**. Local validation therefore decides uploads again:
+finalists get several seeds (and possibly participant cross-validation) before an upload; final
+picks are seed ensembles (more robust in the reproducibility audit).
+
