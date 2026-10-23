@@ -822,11 +822,23 @@ unseen people.
 \textbf{Two-stage training is the best
 single model:} pretrain on THINGS-EEG2 +
 Alljoined, then fine-tune on Alljoined
-alone: \textbf{0.308} (smoothed), +3.6
-over Alljoined alone. Combined with
-fine-tuned REVE: \textbf{0.324}, our
-best so far (our target for Nov 5: ≥
-0.35). The whole REVE story, from its
+alone: \textbf{0.308 / 0.311 / 0.316}
+for three seeds (smoothed), +3.6 to +4.3
+over Alljoined alone. \textbf{Best
+ensemble: three two-stage seeds + one
+fine-tuned REVE ≈ 0.335} (all 63
+combinations of six models scored; REVE
+should get about a quarter of the
+weight). Target for Nov 5: ≥ 0.35.
+
+\textbf{Final models (Oct 23):} the
+recipe retrained on all 20 Alljoined
+participants with fixed epoch counts
+(three two-stage seeds + REVE), to be
+packaged as one Codabench submission.
+Full details:
+\href{architecture_deep_dive.pdf}{architecture\_deep\_dive.md}
+§12. The whole REVE story, from its
 architecture to our fine-tuning
 implementation, with diagrams and a
 slide outline:

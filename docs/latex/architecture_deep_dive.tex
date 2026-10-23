@@ -211,6 +211,9 @@ Contents
 \item
   \hyperref[11-fine-tuning-reve-a-foundation-model-for-eeg]{Fine-tuning
   REVE, a foundation model for EEG}
+\item
+  \hyperref[12-two-stage-training-and-the-final-ensemble]{Two-stage
+  training and the final ensemble}
 \end{enumerate}
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
@@ -2846,14 +2849,14 @@ with THINGS-EEG2 (A4, B3),
 no gain). Open: wider convolutions on
 Alljoined (B5), two-stage training (B4),
 more fine-tuned REVE members.
-\textbf{Current best: two-stage encoder
-+ fine-tuned REVE (B4 + C1 = 0.3237,
-§11.7); best single model: two-stage B4
-(0.3083 smoothed).} Spatial attention
-(only if the final\textquotesingle s
-montage differs from
-Alljoined\textquotesingle s), repetition
-averaging.
+\textbf{Current best: three two-stage
+seeds + one fine-tuned REVE ≈ 0.335
+(§12.4); best single model: two-stage
+training (0.308--0.316 smoothed,
+§12.3).} Spatial attention (only if the
+final\textquotesingle s montage differs
+from Alljoined\textquotesingle s),
+repetition averaging.
 
 \subsubsection{10.6 Oct 22: Alljoined
 re-tests, the channel layout, and
@@ -3490,8 +3493,8 @@ score during training):
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.7674}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.2326}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.7358}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.2642}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Model
@@ -3508,7 +3511,11 @@ Our encoder from scratch (B1) &
 Frozen REVE + attention head (A3, stage
 1) & 0.245 \\
 REVE top-4 fine-tuned + head (C1, stage
-2) & 0.2592 (epoch 9) \\
+2, lr 1e-4) & 0.2592 (epoch 9) \\
+REVE top-4, gentler (C2, lr 3e-5) &
+\textbf{0.2708} (epoch 8) \\
+REVE top-4, C1\textquotesingle s recipe
+with seed 2 (C3) & 0.2600 (epoch 3) \\
 \end{longtable}
 }
 
@@ -3604,10 +3611,11 @@ while REVE adds \textasciitilde+1
 because it is different. The final
 ensemble\textquotesingle s shape:
 several two-stage models (seeds) +
-fine-tuned REVE models. Queued: round 10
-(REVE: gentler lr 3e-5, and
-C1\textquotesingle s recipe with seed
-2), round 11 (two-stage seeds 2, 3).
+fine-tuned REVE models. Round 10 (REVE
+C2 gentler lr 3e-5: 0.2708; C3 seed 2:
+0.2600) and round 11 (two-stage seeds 2,
+3) followed; the full ensemble search
+over all six members is in §12.4.
 
 \subsubsection{11.8 What we expect, and
 what could go
@@ -3699,6 +3707,406 @@ minutes)}\label{slide-outline-10-minutes}
   \textbf{0.3075}, against 0.2737 for
   our best single encoder: the two
   families complement each other.
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{12. Two-stage training and
+the final
+ensemble}\label{two-stage-training-and-the-final-ensemble}
+
+\subsubsection{12.1 The idea: learn from
+more people first, then
+specialise}\label{the-idea-learn-from-more-people-first-then-specialise}
+
+Three facts from §10 pointed at it:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  More participants help unseen people
+  (+3.6 points per doubling, §10.1).
+\item
+  But \textbf{mixing} THINGS-EEG2 into
+  Alljoined training hurts (A4 0.241, B3
+  0.247, vs 0.2725 for Alljoined alone):
+  the two datasets differ too much
+  (§10.6), so a single model has to
+  compromise.
+\item
+  REVE, pretrained on 25,000 subjects
+  and then adapted, helps as an ensemble
+  member (§11).
+\end{enumerate}
+
+\textbf{Two-stage training} combines
+them, as in BiT and LP-FT: \textbf{stage
+1} trains on everything available
+(THINGS-EEG2\textquotesingle s 10
+participants +
+Alljoined\textquotesingle s 16: 26
+people, 1.74M windows), so the encoder
+learns what is common to EEG responses
+to images across people and headsets;
+\textbf{stage 2} continues from those
+weights on \textbf{Alljoined only}, so
+the model specialises to the Emotiv
+headset and the 100 ms paradigm of the
+final.
+
+\begin{figure}[H]\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.8\textheight}
+\begin{tikzpicture}[>={Stealth[length=2mm]}, box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=4pt, fill=black!4}, every edge quotes/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, auto}]
+\graph [layered layout, grow=down, level sep=16mm, sibling sep=32mm, nodes={box}, edges={semithick}] {
+  D1 [as={\textbf{Stage 1 · learn broadly (\textasciitilde{}2 h)} \\ THINGS-EEG2 (10 people, reduced to Alljoined's 32 channels) \\ + Alljoined (16 people) \\ 1.74M windows}];
+  E1 [as={Our encoder, from scratch \\ window\_norm, lr 1e-3, 40 epochs}];
+  E2 [as={\textbf{Stage 2 · specialise (\textasciitilde{}25 min)} \\ Same encoder \\ Alljoined only (16 people) \\ lr 3e-4, \textasciitilde{}5 epochs}];
+  V [as={Held-out Alljoined participants \\ (the final's setting)}];
+  D1 ->[] E1;
+  E1 ->["{--init-from weights}"] E2;
+  E2 ->[] V;
+};
+\end{tikzpicture}
+\end{adjustbox}
+\end{figure}
+
+\subsubsection{12.2 The
+recipe}\label{the-recipe}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.0978}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.5435}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3587}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Stage 1 (joint)
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Stage 2 (specialise)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Data & Alljoined train + val (16
+participants) + THINGS-EEG2 train + val
+(10, channels picked by name to
+Alljoined\textquotesingle s 32):
+\texttt{-\/-extra-cache\ cache/windows/things\_eeg2}
+& Alljoined train + val only (16
+participants) \\
+Start & random initialisation (seed) &
+stage 1\textquotesingle s kept weights:
+\texttt{-\/-init-from\ .../weights.pt} \\
+Encoder & default size (1.39M
+parameters), \texttt{window\_norm=True}
+& same \\
+Optimiser & AdamW, lr 1e-3, weight decay
+1e-4, constant & AdamW, \textbf{lr 3e-4}
+(gentler: keep what stage 1 learned) \\
+Loss & CLIP / InfoNCE, learnable
+temperature & same \\
+Selection & smoothed held-out score
+(mean of 3 epochs), patience 10, up to
+40 epochs & same \\
+Time on the Mac & \textasciitilde113 min
+(40 epochs) & \textasciitilde25 min \\
+\end{longtable}
+}
+
+Commands (one seed):
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ExtensionTok{python}\NormalTok{ scripts/train\_solver.py submission/submission.py submissions/m11\_joint\_s2 }\AttributeTok{{-}{-}dataset}\NormalTok{ xu2025alljoined }\DataTypeTok{\textbackslash{}}
+  \AttributeTok{{-}{-}holdout{-}subjects} \AttributeTok{{-}{-}use{-}val} \AttributeTok{{-}{-}seed}\NormalTok{ 2 }\AttributeTok{{-}{-}cache}\NormalTok{ cache/windows/xu2025alljoined }\DataTypeTok{\textbackslash{}}
+  \AttributeTok{{-}{-}extra{-}cache}\NormalTok{ cache/windows/things\_eeg2 }\AttributeTok{{-}{-}set}\NormalTok{ learn\_temperature=True n\_epochs=40 smooth=3 patience=10 window\_norm=True}
+\ExtensionTok{python}\NormalTok{ scripts/train\_solver.py submission/submission.py submissions/m11\_twostage\_s2 }\AttributeTok{{-}{-}dataset}\NormalTok{ xu2025alljoined }\DataTypeTok{\textbackslash{}}
+  \AttributeTok{{-}{-}holdout{-}subjects} \AttributeTok{{-}{-}use{-}val} \AttributeTok{{-}{-}seed}\NormalTok{ 2 }\AttributeTok{{-}{-}cache}\NormalTok{ cache/windows/xu2025alljoined }\DataTypeTok{\textbackslash{}}
+  \AttributeTok{{-}{-}init{-}from}\NormalTok{ submissions/m11\_joint\_s2/weights.pt }\AttributeTok{{-}{-}set}\NormalTok{ learn\_temperature=True n\_epochs=40 smooth=3 patience=10 window\_norm=True lr=3e{-}4}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{12.3 Results (Alljoined,
+4 unseen
+participants)}\label{results-alljoined-4-unseen-participants}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0923}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4154}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3385}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1538}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Seed
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Stage 1 alone (smoothed best, epoch)
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Stage 2 (smoothed best, epoch)
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Stage 2, epoch 1
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 (B3 → B4) & 0.247 (15; stopped at 25)
+& \textbf{0.3083} (8) & 0.300 \\
+2 & 0.2675 (34 of 40) & \textbf{0.3108}
+(4) & 0.304 \\
+3 & 0.2687 (36 of 40) & \textbf{0.3158}
+(5) & 0.274 \\
+\end{longtable}
+}
+
+Reference: Alljoined alone (B1/B6)
+0.2725 / 0.2787.
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Reproducible:} three seeds
+  give 0.308--0.316, +3.6 to +4.3 over
+  Alljoined alone (a single run moves by
+  \textasciitilde±0.5 with its seed).
+\item
+  \textbf{Stage 1 alone is no better
+  than Alljoined alone} (0.27): the gain
+  comes from the combination.
+\item
+  \textbf{Specialising is fast:} one
+  epoch of stage 2 already jumps from
+  \textasciitilde0.27 to
+  \textasciitilde0.30, and stage 2 peaks
+  after 4--8 epochs; longer, it starts
+  fitting the 16 training participants.
+\item
+  Interpretation:
+  THINGS-EEG2\textquotesingle s 10 extra
+  people teach the encoder more general
+  features of the visual response; stage
+  2 then re-tunes them to
+  Emotiv\textquotesingle s signal and
+  timing without the dataset conflict
+  that a single mixed model has to
+  resolve.
+\end{itemize}
+
+\subsubsection{12.4 Choosing the
+ensemble}\label{choosing-the-ensemble}
+
+Ensembles average the
+members\textquotesingle{} L2-normalised
+predictions. To compare all combinations
+fairly,
+\texttt{scripts/ensemble\_search.py}
+loads every member like Codabench,
+\textbf{computes its predictions on the
+held-out windows once}, then scores
+every combination with the official
+objective (a small \texttt{Replay} model
+returns the stored predictions batch by
+batch, in the loader\textquotesingle s
+fixed order). On six members (three
+two-stage, three REVE), all 63
+combinations:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.6429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.1905}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.1667}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Best ensemble per size
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Top-5
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Top-1
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1: two-stage seed 2 & 0.3150 & 0.104 \\
+2: two-stage seeds 2 + 3 & 0.3250 &
+0.094 \\
+3: two-stage seeds 1 + 2 + REVE C1 &
+\textbf{0.3387} & 0.109 \\
+4: \textbf{three two-stage + REVE C2} &
+\textbf{0.3375} & 0.098 \\
+5: three two-stage + two REVE & 0.3237 &
+0.103--0.108 \\
+6: all & 0.3150 & 0.106 \\
+\end{longtable}
+}
+
+(Single models here are the saved
+weights scored once; three two-stage
+seeds alone: 0.3275.)
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Several two-stage seeds:} +1.5
+  over a single one (0.3275).
+\item
+  \textbf{One REVE member on top:} +1
+  more (\textasciitilde0.335). REVE is
+  weaker alone (0.25--0.29) but
+  different (trained on 25,000 people),
+  so it corrects some of the
+  encoders\textquotesingle{} mistakes.
+\item
+  \textbf{More REVE members at equal
+  weight dilute} the ensemble (0.32 →
+  0.315): each REVE model is weaker, so
+  it should not get as much weight as an
+  encoder. \textbf{Rule: give the REVE
+  group about a quarter of the total
+  weight}, however many REVE seeds it
+  contains.
+\item
+  \textbf{Winner\textquotesingle s
+  curse:} the best of 63 combinations on
+  800 queries is optimistic by roughly
+  1--2 points. We follow the robust
+  pattern (several two-stage + REVE at
+  \textasciitilde1/4), not the exact top
+  combination.
+\end{itemize}
+
+\subsubsection{12.5 The final models
+(round 12, Oct
+23)}\label{the-final-models-round-12-oct-23}
+
+For the sealed phase, the recipe is
+retrained on \textbf{all 20 Alljoined
+participants} (the 4 validation people
+included; never the test split). With no
+validation left, epoch counts are fixed
+from the curves above:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2360}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4045}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2921}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0674}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Model
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Data
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Epochs (from)
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Seeds
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Two-stage, stage 1 & Alljoined (20) +
+THINGS-EEG2 (10): 2,004,016 windows & 36
+(joint seeds 2, 3 peaked at 34, 36) & 1,
+2, 3 \\
+Two-stage, stage 2 & Alljoined (20) & 6
+(peaks at 4, 5, 8) & 1, 2, 3 \\
+REVE, stage-1 head & REVE final tokens,
+Alljoined (20) & 9 (A3 peaked at 9) &
+1 \\
+REVE, stage 2 (top 4 layers) & layer-18
+tokens, Alljoined (20); lr 3e-5 & 8 (C2
+peaked at 8) & 1 \\
+\end{longtable}
+}
+
+Logged in \texttt{logs/round12.status};
+outputs in
+\texttt{submissions/final\_aj\_*}.
+Expected level, from the 16-participant
+versions:
+\textbf{\textasciitilde0.33--0.34 top-5
+on unseen people}, possibly a little
+more with four extra training
+participants (≈ +1, from the participant
+curve).
+
+\textbf{Packaging (to do):} one
+Codabench ZIP holding both model
+families: a combined solver that loads
+the three two-stage encoders (mean,
+weight 3/4) and the REVE model (weight
+1/4), picks the 32 channels by name
+(\texttt{channels.json}), and stays
+small enough to upload
+(\textasciitilde15 MB of encoders +
+\textasciitilde77 MB for REVE). Checked
+locally with
+\texttt{make\ test-submission}, and as a
+dry run on the warm-up.
+
+\subsubsection{12.6 Spending the sealed
+uploads}\label{spending-the-sealed-uploads}
+
+Five sealed uploads per participant in
+total (§10.6, Oct 22 update): local
+validation decides. Plan: first upload =
+this final ensemble (it also checks the
+mechanics on the real cohort); later
+uploads only for candidates that beat it
+clearly on our held-out participants
+(several seeds); the best one last.
+
+\subsubsection{12.7 Slide outline (5
+minutes)}\label{slide-outline-5-minutes}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{The puzzle:} more people helps
+  (participant curve), but adding
+  THINGS-EEG2 to Alljoined hurts.
+\item
+  \textbf{The answer:}
+  don\textquotesingle t mix,
+  \emph{stage}: learn broadly on 26
+  people, then specialise on Alljoined
+  (diagram §12.1).
+\item
+  \textbf{Results:} three seeds
+  0.308--0.316 vs 0.27; one epoch of
+  specialisation does most of it
+  (§12.3).
+\item
+  \textbf{Ensembles:} several two-stage
+  seeds + REVE at a quarter of the
+  weight ≈ 0.335; why weaker members
+  must get less weight; the
+  winner\textquotesingle s curse
+  (§12.4).
+\item
+  \textbf{From experiments to the
+  final:} retrain on all 20 participants
+  with fixed epochs, one ZIP with both
+  model families, and how
+  we\textquotesingle ll spend 5 sealed
+  uploads (§12.5--12.6).
 \end{enumerate}
 
 \end{document}

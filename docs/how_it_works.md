@@ -318,8 +318,13 @@ its top 4 layers gives 0.259 alone, but **averaged with two of our encoders: 0.3
 for our best single encoder, our first score above 0.30 on unseen people.
 
 **Two-stage training is the best single model:** pretrain on THINGS-EEG2 + Alljoined, then fine-tune
-on Alljoined alone: **0.308** (smoothed), +3.6 over Alljoined alone. Combined with fine-tuned REVE:
-**0.324**, our best so far (our target for Nov 5: ≥ 0.35). The whole REVE story, from its architecture to our fine-tuning implementation, with
+on Alljoined alone: **0.308 / 0.311 / 0.316** for three seeds (smoothed), +3.6 to +4.3 over Alljoined
+alone. **Best ensemble: three two-stage seeds + one fine-tuned REVE ≈ 0.335** (all 63 combinations
+of six models scored; REVE should get about a quarter of the weight). Target for Nov 5: ≥ 0.35.
+
+**Final models (Oct 23):** the recipe retrained on all 20 Alljoined participants with fixed epoch
+counts (three two-stage seeds + REVE), to be packaged as one Codabench submission. Full details:
+[architecture_deep_dive.md](architecture_deep_dive.md) §12. The whole REVE story, from its architecture to our fine-tuning implementation, with
 diagrams and a slide outline: [architecture_deep_dive.md](architecture_deep_dive.md) §11.
 Details in [architecture_deep_dive.md](architecture_deep_dive.md) §9–§10.
 

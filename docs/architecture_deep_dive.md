@@ -23,6 +23,7 @@ Contents
 9. [Next: new people and new headsets (in progress)](#9-next-new-people-and-new-headsets-in-progress)
 10. [Unseen participants and Alljoined: results and new tools (Oct 21–22)](#10-unseen-participants-and-alljoined-results-and-new-tools-oct-2122)
 11. [Fine-tuning REVE, a foundation model for EEG](#11-fine-tuning-reve-a-foundation-model-for-eeg)
+12. [Two-stage training and the final ensemble](#12-two-stage-training-and-the-final-ensemble)
 
 ---
 
@@ -900,8 +901,8 @@ montage). Frozen and **averaged over channels** (the official probe), it reached
 early stopping, channel selection by name, seed ensembles. Out: participant-adversarial training,
 augmentation, joint training with THINGS-EEG2 (A4, B3), `window_norm` on Alljoined (B2: no gain).
 Open: wider convolutions on Alljoined (B5), two-stage training (B4), more fine-tuned REVE members.
-**Current best: two-stage encoder + fine-tuned REVE (B4 + C1 = 0.3237, §11.7); best single model:
-two-stage B4 (0.3083 smoothed).** Spatial attention
+**Current best: three two-stage seeds + one fine-tuned REVE ≈ 0.335 (§12.4); best single model:
+two-stage training (0.308–0.316 smoothed, §12.3).** Spatial attention
 (only if the final's montage differs from Alljoined's), repetition averaging.
 
 ### 10.6 Oct 22: Alljoined re-tests, the channel layout, and REVE's real recipe
@@ -1124,7 +1125,9 @@ Single models (best smoothed held-out score during training):
 |---|---|
 | Our encoder from scratch (B1) | 0.2725 |
 | Frozen REVE + attention head (A3, stage 1) | 0.245 |
-| REVE top-4 fine-tuned + head (C1, stage 2) | 0.2592 (epoch 9) |
+| REVE top-4 fine-tuned + head (C1, stage 2, lr 1e-4) | 0.2592 (epoch 9) |
+| REVE top-4, gentler (C2, lr 3e-5) | **0.2708** (epoch 8) |
+| REVE top-4, C1's recipe with seed 2 (C3) | 0.2600 (epoch 3) |
 
 C1's curve: 0.248 (epoch 4) → **0.259 (epoch 9)** → 0.223 (epoch 14) while the training loss kept
 falling (5.17 → 4.6): fine-tuning helps over frozen REVE (+1.4), but the top layers start
@@ -1153,7 +1156,8 @@ With the two-stage model B4 (round 8):
 
 **Ensemble members must be strong:** weaker encoders dilute B4, while REVE adds ~+1 because it is
 different. The final ensemble's shape: several two-stage models (seeds) + fine-tuned REVE models.
-Queued: round 10 (REVE: gentler lr 3e-5, and C1's recipe with seed 2), round 11 (two-stage seeds 2, 3).
+Round 10 (REVE C2 gentler lr 3e-5: 0.2708; C3 seed 2: 0.2600) and round 11 (two-stage seeds 2, 3) followed;
+the full ensemble search over all six members is in §12.4.
 
 ### 11.8 What we expect, and what could go wrong
 
@@ -1185,4 +1189,143 @@ Queued: round 10 (REVE: gentler lr 3e-5, and C1's recipe with seed 2), round 11 
    trained model, selection on unseen people.
 10. **Results** (§11.7): fine-tuned REVE alone 0.259 (frozen 0.245), but in an ensemble with our
     encoders **0.3075**, against 0.2737 for our best single encoder: the two families complement each other.
+
+---
+
+## 12. Two-stage training and the final ensemble
+
+### 12.1 The idea: learn from more people first, then specialise
+
+Three facts from §10 pointed at it:
+
+1. More participants help unseen people (+3.6 points per doubling, §10.1).
+2. But **mixing** THINGS-EEG2 into Alljoined training hurts (A4 0.241, B3 0.247, vs 0.2725 for
+   Alljoined alone): the two datasets differ too much (§10.6), so a single model has to compromise.
+3. REVE, pretrained on 25,000 subjects and then adapted, helps as an ensemble member (§11).
+
+**Two-stage training** combines them, as in BiT and LP-FT: **stage 1** trains on everything
+available (THINGS-EEG2's 10 participants + Alljoined's 16: 26 people, 1.74M windows), so the
+encoder learns what is common to EEG responses to images across people and headsets; **stage 2**
+continues from those weights on **Alljoined only**, so the model specialises to the Emotiv headset
+and the 100 ms paradigm of the final.
+
+```mermaid
+flowchart LR
+    subgraph S1["Stage 1 · learn broadly (~2 h)"]
+        D1["THINGS-EEG2 (10 people, reduced to Alljoined's 32 channels)<br/>+ Alljoined (16 people)<br/>1.74M windows"] --> E1["Our encoder, from scratch<br/>window_norm, lr 1e-3, 40 epochs"]
+    end
+    subgraph S2["Stage 2 · specialise (~25 min)"]
+        E1 -->|"--init-from weights"| E2["Same encoder<br/>Alljoined only (16 people)<br/>lr 3e-4, ~5 epochs"]
+    end
+    E2 --> V["Held-out Alljoined participants<br/>(the final's setting)"]
+```
+
+### 12.2 The recipe
+
+| | Stage 1 (joint) | Stage 2 (specialise) |
+|---|---|---|
+| Data | Alljoined train + val (16 participants) + THINGS-EEG2 train + val (10, channels picked by name to Alljoined's 32): `--extra-cache cache/windows/things_eeg2` | Alljoined train + val only (16 participants) |
+| Start | random initialisation (seed) | stage 1's kept weights: `--init-from .../weights.pt` |
+| Encoder | default size (1.39M parameters), `window_norm=True` | same |
+| Optimiser | AdamW, lr 1e-3, weight decay 1e-4, constant | AdamW, **lr 3e-4** (gentler: keep what stage 1 learned) |
+| Loss | CLIP / InfoNCE, learnable temperature | same |
+| Selection | smoothed held-out score (mean of 3 epochs), patience 10, up to 40 epochs | same |
+| Time on the Mac | ~113 min (40 epochs) | ~25 min |
+
+Commands (one seed):
+
+```bash
+python scripts/train_solver.py submission/submission.py submissions/m11_joint_s2 --dataset xu2025alljoined \
+  --holdout-subjects --use-val --seed 2 --cache cache/windows/xu2025alljoined \
+  --extra-cache cache/windows/things_eeg2 --set learn_temperature=True n_epochs=40 smooth=3 patience=10 window_norm=True
+python scripts/train_solver.py submission/submission.py submissions/m11_twostage_s2 --dataset xu2025alljoined \
+  --holdout-subjects --use-val --seed 2 --cache cache/windows/xu2025alljoined \
+  --init-from submissions/m11_joint_s2/weights.pt --set learn_temperature=True n_epochs=40 smooth=3 patience=10 window_norm=True lr=3e-4
+```
+
+### 12.3 Results (Alljoined, 4 unseen participants)
+
+| Seed | Stage 1 alone (smoothed best, epoch) | Stage 2 (smoothed best, epoch) | Stage 2, epoch 1 |
+|---|---|---|---|
+| 1 (B3 → B4) | 0.247 (15; stopped at 25) | **0.3083** (8) | 0.300 |
+| 2 | 0.2675 (34 of 40) | **0.3108** (4) | 0.304 |
+| 3 | 0.2687 (36 of 40) | **0.3158** (5) | 0.274 |
+
+Reference: Alljoined alone (B1/B6) 0.2725 / 0.2787.
+
+- **Reproducible:** three seeds give 0.308–0.316, +3.6 to +4.3 over Alljoined alone (a single run
+  moves by ~±0.5 with its seed).
+- **Stage 1 alone is no better than Alljoined alone** (0.27): the gain comes from the combination.
+- **Specialising is fast:** one epoch of stage 2 already jumps from ~0.27 to ~0.30, and stage 2
+  peaks after 4–8 epochs; longer, it starts fitting the 16 training participants.
+- Interpretation: THINGS-EEG2's 10 extra people teach the encoder more general features of the
+  visual response; stage 2 then re-tunes them to Emotiv's signal and timing without the dataset
+  conflict that a single mixed model has to resolve.
+
+### 12.4 Choosing the ensemble
+
+Ensembles average the members' L2-normalised predictions. To compare all combinations fairly,
+`scripts/ensemble_search.py` loads every member like Codabench, **computes its predictions on the
+held-out windows once**, then scores every combination with the official objective (a small
+`Replay` model returns the stored predictions batch by batch, in the loader's fixed order). On six
+members (three two-stage, three REVE), all 63 combinations:
+
+| Best ensemble per size | Top-5 | Top-1 |
+|---|---|---|
+| 1: two-stage seed 2 | 0.3150 | 0.104 |
+| 2: two-stage seeds 2 + 3 | 0.3250 | 0.094 |
+| 3: two-stage seeds 1 + 2 + REVE C1 | **0.3387** | 0.109 |
+| 4: **three two-stage + REVE C2** | **0.3375** | 0.098 |
+| 5: three two-stage + two REVE | 0.3237 | 0.103–0.108 |
+| 6: all | 0.3150 | 0.106 |
+
+(Single models here are the saved weights scored once; three two-stage seeds alone: 0.3275.)
+
+- **Several two-stage seeds:** +1.5 over a single one (0.3275).
+- **One REVE member on top:** +1 more (~0.335). REVE is weaker alone (0.25–0.29) but different
+  (trained on 25,000 people), so it corrects some of the encoders' mistakes.
+- **More REVE members at equal weight dilute** the ensemble (0.32 → 0.315): each REVE model is
+  weaker, so it should not get as much weight as an encoder. **Rule: give the REVE group about a
+  quarter of the total weight**, however many REVE seeds it contains.
+- **Winner's curse:** the best of 63 combinations on 800 queries is optimistic by roughly 1–2 points.
+  We follow the robust pattern (several two-stage + REVE at ~1/4), not the exact top combination.
+
+### 12.5 The final models (round 12, Oct 23)
+
+For the sealed phase, the recipe is retrained on **all 20 Alljoined participants** (the 4 validation
+people included; never the test split). With no validation left, epoch counts are fixed from the
+curves above:
+
+| Model | Data | Epochs (from) | Seeds |
+|---|---|---|---|
+| Two-stage, stage 1 | Alljoined (20) + THINGS-EEG2 (10): 2,004,016 windows | 36 (joint seeds 2, 3 peaked at 34, 36) | 1, 2, 3 |
+| Two-stage, stage 2 | Alljoined (20) | 6 (peaks at 4, 5, 8) | 1, 2, 3 |
+| REVE, stage-1 head | REVE final tokens, Alljoined (20) | 9 (A3 peaked at 9) | 1 |
+| REVE, stage 2 (top 4 layers) | layer-18 tokens, Alljoined (20); lr 3e-5 | 8 (C2 peaked at 8) | 1 |
+
+Logged in `logs/round12.status`; outputs in `submissions/final_aj_*`. Expected level, from the
+16-participant versions: **~0.33–0.34 top-5 on unseen people**, possibly a little more with four
+extra training participants (≈ +1, from the participant curve).
+
+**Packaging (to do):** one Codabench ZIP holding both model families: a combined solver that loads
+the three two-stage encoders (mean, weight 3/4) and the REVE model (weight 1/4), picks the 32
+channels by name (`channels.json`), and stays small enough to upload (~15 MB of encoders + ~77 MB
+for REVE). Checked locally with `make test-submission`, and as a dry run on the warm-up.
+
+### 12.6 Spending the sealed uploads
+
+Five sealed uploads per participant in total (§10.6, Oct 22 update): local validation decides.
+Plan: first upload = this final ensemble (it also checks the mechanics on the real cohort); later
+uploads only for candidates that beat it clearly on our held-out participants (several seeds); the
+best one last.
+
+### 12.7 Slide outline (5 minutes)
+
+1. **The puzzle:** more people helps (participant curve), but adding THINGS-EEG2 to Alljoined hurts.
+2. **The answer:** don't mix, *stage*: learn broadly on 26 people, then specialise on Alljoined (diagram §12.1).
+3. **Results:** three seeds 0.308–0.316 vs 0.27; one epoch of specialisation does most of it (§12.3).
+4. **Ensembles:** several two-stage seeds + REVE at a quarter of the weight ≈ 0.335; why weaker
+   members must get less weight; the winner's curse (§12.4).
+5. **From experiments to the final:** retrain on all 20 participants with fixed epochs, one ZIP
+   with both model families, and how we'll spend 5 sealed uploads (§12.5–12.6).
 
