@@ -32,8 +32,12 @@ def _curve_summary(history):
     out = {"epochs_run": len(history)}
     scored = [r for r in history if "heldout" in r]
     if scored:
-        best = max(scored, key=lambda r: r["heldout"])
+        # the epoch fit kept: by the smoothed score when Solver.smooth > 1, else the raw one
+        key = "heldout_smooth" if any("heldout_smooth" in r for r in scored) else "heldout"
+        best = max((r for r in scored if key in r), key=lambda r: r[key])
         out.update(best_epoch=best["epoch"], best_heldout_top5_sa=round(best["heldout"], 4))
+        if key == "heldout_smooth":
+            out["best_heldout_smooth"] = round(best["heldout_smooth"], 4)
     return out
 
 
@@ -58,6 +62,9 @@ def main():
     parser.add_argument("--holdout", action="store_true",
                         help="train without the 200 held-out concepts (configs/heldout_concepts.json), "
                              "so the model can be selected with eval_local.py --split heldout")
+    parser.add_argument("--init-from", type=Path, default=None, metavar="WEIGHTS",
+                        help="start from these weights (two-stage training, e.g. a joint THINGS-EEG2 + "
+                             "Alljoined model fine-tuned on Alljoined); same encoder settings needed")
     parser.add_argument("--resume", action="store_true",
                         help="continue an interrupted run from OUT_FOLDER/checkpoint.pt (saved after every epoch); "
                              "starts from scratch if there is none, and skips a run that already finished")
@@ -195,12 +202,17 @@ def main():
 
     args.out.mkdir(parents=True, exist_ok=True)
     model = solver.load_model({**meta, "device": device, "submission_dir": args.out.resolve()})
+    if args.init_from:  # a resumed run's checkpoint overrides these weights in fit
+        model.load_state_dict(torch.load(args.init_from, map_location=device, weights_only=True))
+        print(f"Initialised from {args.init_from}", flush=True)
     start = time.time()
     solver.fit(model, loaders["train"])
     print(f"fit done in {(time.time() - start) / 60:.1f} min", flush=True)
 
     (args.out / "submission.py").write_text(solver_source)
     solver.save_model(model, args.out.resolve())
+    if meta.get("ch_names"):  # the training montage: lets inference pick these channels by name
+        (args.out / "channels.json").write_text(json.dumps({"ch_names": [str(n) for n in meta["ch_names"]]}))
     # Audit record (left out of the ZIP by `make zip-submission`, like other run_config* files).
     commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=REPO).stdout.strip()
     dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
@@ -210,7 +222,8 @@ def main():
         "commit": commit + ("+uncommitted-changes" if dirty else ""),
         "solver": str(args.solver), "holdout": args.holdout, "holdout_subjects": args.holdout_subjects, "train_subjects": args.train_subjects, "use_val": args.use_val, "dataset": args.dataset,
         "batch_size": args.batch_size, "cache": str(args.cache) if args.cache else None,
-        "extra_cache": str(args.extra_cache) if args.extra_cache else None, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
+        "extra_cache": str(args.extra_cache) if args.extra_cache else None,
+        "init_from": str(args.init_from) if args.init_from else None, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
         "resumed_after_epoch": getattr(solver, "resumed_from", None),  # fit_minutes then counts from there

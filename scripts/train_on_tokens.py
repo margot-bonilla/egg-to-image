@@ -16,6 +16,7 @@ import argparse
 import ast
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -54,6 +55,10 @@ def main():
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--set", nargs="*", default=[], metavar="NAME=VALUE", help="Solver settings")
     parser.add_argument("--head", nargs="*", default=[], metavar="NAME=VALUE", help="AttentionPoolHead arguments")
+    parser.add_argument("--top-layers", type=int, default=0, metavar="K",
+                        help="stage 2: also fine-tune REVE's top K layers (TOKENS must be cached after layer 22-K)")
+    parser.add_argument("--init-head", type=Path, default=None, metavar="WEIGHTS",
+                        help="start the head from a stage-1 run's weights.pt (LP-FT)")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if args.out.exists() and (args.out / "run_config.json").exists():
@@ -101,6 +106,21 @@ def main():
 
     torch.manual_seed(args.seed)
     head = reve_module.AttentionPoolHead(n_outputs=meta["n_outputs"], **head_args).to(device)
+    if args.init_head:
+        head.load_state_dict(torch.load(args.init_head, map_location=device, weights_only=True))
+        print(f"Head initialised from {args.init_head}", flush=True)
+    if args.top_layers:
+        reve = reve_module.FrozenREVE(meta["ch_names"], meta["sfreq"], meta["n_times"], device)
+        blocks = reve.model.transformer.layers
+        start = len(blocks) - args.top_layers
+        if meta.get("layer") != start:
+            raise SystemExit(f"--top-layers {args.top_layers} needs tokens cached after layer {start}, "
+                             f"{args.tokens} has layer {meta.get('layer')}")
+        import copy
+        head = reve_module.REVETopFinetune(copy.deepcopy(blocks[start:]), head).to(device).requires_grad_(True)
+        del reve
+        print(f"Fine-tuning REVE layers {start + 1}-{len(blocks)} "
+              f"({sum(p.numel() for p in head.layers.parameters()) / 1e6:.1f}M parameters) + head", flush=True)
     start = time.time()
     solver.fit(head, train_loader)
     print(f"fit done in {(time.time() - start) / 60:.1f} min", flush=True)
@@ -110,13 +130,16 @@ def main():
     commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=REPO).stdout.strip()
     history = getattr(solver, "history", [])
     scored = [r for r in history if "heldout" in r]
-    best = max(scored, key=lambda r: r["heldout"]) if scored else {}
+    key = "heldout_smooth" if any("heldout_smooth" in r for r in scored) else "heldout"  # the epoch fit kept
+    best = max((r for r in scored if key in r), key=lambda r: r[key]) if scored else {}
     (args.out / "run_config.json").write_text(json.dumps({
         "command": "python " + " ".join(sys.argv), "commit": commit, "tokens": str(args.tokens),
         "dataset": args.dataset, "holdout_subjects": args.holdout_subjects, "use_val": args.use_val,
-        "seed": args.seed, "overrides": overrides, "head": head_args, "train_items": len(train_loader.dataset),
+        "seed": args.seed, "overrides": overrides, "head": head_args, "top_layers": args.top_layers,
+        "init_head": str(args.init_head) if args.init_head else None, "train_items": len(train_loader.dataset),
         "fit_minutes": round((time.time() - start) / 60, 1), "epochs_run": len(history),
         "best_epoch": best.get("epoch"), "best_heldout_top5_sa": round(best["heldout"], 4) if best else None,
+        "best_heldout_smooth": round(best["heldout_smooth"], 4) if "heldout_smooth" in best else None,
         "resumed_after_epoch": getattr(solver, "resumed_from", None),
     }, indent=2))
     (args.out / "run_config_curve.json").write_text(json.dumps(history, indent=1))
@@ -125,4 +148,6 @@ def main():
 
 
 if __name__ == "__main__":
+    os.environ.setdefault("HF_HOME", str(REPO / "cache" / "huggingface"))
+    os.environ.setdefault("REVE_POSITIONS_PATH", str(REPO / "cache" / "mne_data"))
     main()

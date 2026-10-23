@@ -21,6 +21,8 @@ Contents
 7. [Paper map and bibliography](#7-paper-map-and-bibliography)
 8. [Teaching kit](#8-teaching-kit)
 9. [Next: new people and new headsets (in progress)](#9-next-new-people-and-new-headsets-in-progress)
+10. [Unseen participants and Alljoined: results and new tools (Oct 21–22)](#10-unseen-participants-and-alljoined-results-and-new-tools-oct-2122)
+11. [Fine-tuning REVE, a foundation model for EEG](#11-fine-tuning-reve-a-foundation-model-for-eeg)
 
 ---
 
@@ -447,13 +449,19 @@ Sources: `RESULTS.md`, `logs/overnight_summary.md`, `logs/round2.status`, `logs/
 | **R6 40 epochs** | 20 epochs were too few | `n_epochs=40`, early stopping | **0.590** (epoch 36) | not run | – | **+3.75**: keep; still rising at 40 |
 | R15 floor 0.005 | τ is stuck at the 0.01 floor | `min_temperature=0.005` | 0.564 at epoch 31 (stopped at 32/40 by a restart) | – | – | Trailed R6 throughout: no gain |
 | R7 avg 1–4 reps (random) | Cleaner training examples | `--avg-reps 4 --avg-reps-random` | 0.555 (epoch 46, stopped at 51) | – | – | Cut short by patience (§3.4); faster per minute than R6; re-test with scaled patience |
-| R8 avg 2 reps | Same, fixed k = 2 | `--avg-reps 2` | running at the time of writing (0.508 at epoch 28) | – | – | – |
+| R8 avg 2 reps | Same, fixed k = 2 | `--avg-reps 2` | 0.5535 (epoch 47, stopped at 52) | – | – | Same caveat as R7 |
+| R9 cosine | A decaying lr finds a better optimum | `lr_schedule='cosine' warmup_epochs=1`, 30 epochs, patience 8 | 0.570 (epoch 27) | – | – | Below R6 (0.590 at 40 constant-lr epochs) |
+| R10 batch 512 | More negatives per step | R9 + `--batch-size 512 lr=2e-3` | 0.581 (epoch 30) | – | – | ≈ R6 |
+| R11 batch 1024 | Even more negatives | R9 + `--batch-size 1024 lr=4e-3` | 0.586 (epoch 27) | – | – | ≈ R6 in **62 instead of 105 min**: candidate with more epochs |
+| **R12 wider convs** | The encoder is capacity-limited | `temporal_filters=64 spatial_filters=128 sep_filters=256` (2.26M params) | **0.615** (epoch 22, stopped at 27) | – | – | **+2.5**: keep (5–6 points ahead of R6 at every epoch); ~2.6× slower per epoch |
+| R13 wider head | Same, in the head | `hidden_dim=1024 head_blocks=1` | 0.529 at epoch 17 (R6 there: 0.545) | – | – | Trailing: cancelled, as was R14 (both) |
+| **Final R6 recipe** | 40 epochs on all concepts | R6 recipe, all concepts + val, seeds 1–3, ensembled (`final_r6_ens3`) | n/a | **0.7760** (seeds 0.755–0.766) | **0.78** (top-1 0.44) | Submission 1007631, rank 60; trained at `95e45ea` |
+| **Final R12 recipe** | wider convolutions on all concepts | R12 recipe, 24 epochs, all concepts + val, seeds 1–3 (`final_wide_ens3`) | n/a | **0.8005** (seeds 0.776–0.784), top-1 0.4655 | pending (Codabench outage, Oct 22) | Best warm-up model; ~3.2 h per seed |
 
 Top-1 subject-aggregated for the uploaded models: 0.09 (EEGNet) → 0.22 → 0.34 (R2) → 0.37
-(R5) → **0.40** (final ensemble).
+(R5) → 0.40 (final ensemble) → **0.44** (final R6 recipe).
 
-Queued (`logs/round2.status`): R9–R11 cosine schedule with batch 256 / 512 / 1024 (#18);
-R12–R14 wider convolutions / head 1024 + residual block / both (#27).
+Unseen-participant experiments are in §10.
 
 ---
 
@@ -514,7 +522,10 @@ flowchart LR
 | Position-based spatial attention, spatial dropout | Défossez et al. 2023 | "Spatial attention" layer in Methods (Fourier embedding of sensor positions) | `SpatialAttention`, `Solver.virtual_channels` (§9.2) |
 | Electrode positions (10-05 system) | Oostenveld & Praamstra 2001 **(unverified)**; MNE's `standard_1005` montage | | `ELECTRODE_XY`, `channel_positions` |
 | Held-out participants (cross-subject validation) | standard practice; motivated by the sealed final's unseen subjects | | `heldout_subjects_split` (§9.1) |
-| EEG foundation model (tried, weak) | El Ouahidi et al. 2025 (REVE) | | `logs/reve*` |
+| EEG foundation model: frozen + channel-averaged (weak), then tokens + attention-pooling head | El Ouahidi et al. 2025 (REVE) | | `submission/reve_submission.py`, `scripts/cache_reve_tokens.py` (§10.4) |
+| More pretraining data matters most out of distribution (motivates more participants, REVE) | Kolesnikov et al. 2020 (BiT) **(unverified)** | ObjectNet figure | §10.1 participant curve |
+| Fine-tune after fitting the head on the frozen backbone (LP-FT) | Kumar et al. 2022 **(unverified)** | | REVE stage 1 → stage 2 (§10.6) |
+| Participant-adversarial training (DANN, domain confusion) | Ganin & Lempitsky 2015; Tzeng et al. 2015; Elazar & Goldberg 2018 **(unverified)** | | `SubjectAdversary`, `adversarial_weight` (§10.3) |
 | Final-phase data family | Xu et al. 2024 (Alljoined1); Xu et al. 2025 (Alljoined-1.6M) | Dataset papers | issues #4, #21 |
 | A convolution + transformer EEG encoder (candidate for #12) | Song et al. 2023 (EEG Conformer) | Architecture figure | not implemented |
 
@@ -588,6 +599,24 @@ available while writing this, so the others are from memory and marked **(unveri
 - Hendrycks, D., & Gimpel, K. (2016). Gaussian error linear units (GELUs). arXiv. **(unverified)**
 - Srivastava, N., et al. (2014). Dropout: A simple way to prevent neural networks from
   overfitting. *JMLR*. **(unverified)**
+
+**Added Oct 22**
+- El Ouahidi, Y., Lys, J., Thölke, P., Farrugia, N., Pasdeloup, B., Gripon, V., Jerbi, K., & Lioi, G.
+  (2025). REVE: A Foundation Model for EEG — Adapting to Any Setup with Large-Scale Pretraining on
+  25,000 Subjects. NeurIPS 2025. https://openreview.net/forum?id=ZeFMtRBy4Z (verified: braindecode's
+  `REVE` docstring).
+- Kumar, A., Raghunathan, A., Jones, R., Ma, T., & Liang, P. (2022). Fine-Tuning can Distort
+  Pretrained Features and Underperform Out-of-Distribution. ICLR. **(unverified)**
+
+**Added Oct 21 (from memory, unverified: check titles before citing)**
+- Kolesnikov, A., Beyer, L., Zhai, X., Puigcerver, J., Yung, J., Gelly, S., & Houlsby, N. (2020).
+  Big Transfer (BiT): General Visual Representation Learning. ECCV. **(unverified)**
+- Ganin, Y., & Lempitsky, V. (2015). Unsupervised Domain Adaptation by Backpropagation. ICML
+  (the gradient-reversal layer, DANN). **(unverified)**
+- Tzeng, E., Hoffman, J., Darrell, T., & Saenko, K. (2015). Simultaneous Deep Transfer Across
+  Domains and Tasks. ICCV (domain-confusion loss). **(unverified)**
+- Elazar, Y., & Goldberg, Y. (2018). Adversarial Removal of Demographic Attributes from Text
+  Data. EMNLP (adversarially "removed" attributes stay recoverable). **(unverified)**
 
 ---
 
@@ -727,7 +756,10 @@ galleries give 16,174 windows, ~4,000 queries, and a measured standard error of 
 | Model | Trained on participants 6 and 7? | Held-out-participants score (top-5 SA) |
 |---|---|---|
 | R6 | yes (reference, not a real held-out score) | 0.6352 ± 0.0077 |
-| any `--holdout-subjects` run | no | to be measured: the drop from 0.635 is the cost of unseen people |
+| **R16** (R6 recipe, `--holdout-subjects`) | no | **0.2333** (best epoch 16 of 21) |
+
+Unseen people cost about 40 points. R16 also peaked much earlier (epoch 16) than R6 on seen
+people (epoch 36): longer training fits the training participants, not people in general.
 
 ### 9.2 One model for any headset: spatial attention
 
@@ -765,10 +797,392 @@ flowchart LR
   32-channel Emotiv montage with the same weights. Positions are per-montage buffers, not saved
   in `weights.pt`.
 
-### 9.3 The plan
+**Result (R17 = R16 + `virtual_channels=64 spatial_dropout=0.15`):** best 0.2553 vs 0.2333,
+and +1.6 on average over the last 10 epochs: a small, consistent gain (one seed). But R17
+trained **3.2× slower** (116 vs 36 min). It isn't the softmax/einsum layout: with the layer in
+front, the first convolution must also compute the gradient of its input, which looks slow on
+the Apple GPU for this shape; a clean benchmark needs an idle GPU (to do).
+
+### 9.3 The plan (as of Oct 20; see §10 for what happened)
 
 1. Train the R6 recipe with `--holdout-subjects` (the unseen-people baseline).
 2. Same with `--set virtual_channels=64 spatial_dropout=0.15`: does spatial attention cost
    anything on THINGS-EEG2, and does it help on unseen people?
 3. Then joint training on THINGS-EEG2 + Alljoined (issue #21), possible only with step 2's layer,
    validated on Alljoined's held-out participants (issue #4).
+
+---
+
+## 10. Unseen participants and Alljoined: results and new tools (Oct 21–22)
+
+### 10.1 What helps on unseen people (THINGS-EEG2, round 3)
+
+Each run is R16 (0.2333) with **one** change, scored on participants 6 and 7 (10 galleries,
+standard error ≈ 0.8 points):
+
+| Run | Change | Score | Δ | Verdict |
+|---|---|---|---|---|
+| **R18** | `window_norm=True`: each channel standardised over time inside each window | **0.274** | **+4.1** | ✓ keep: removes per-person amplitude/offset differences, costs nothing. REVE's own preprocessing does the same per-window z-scoring |
+| R20 | wider convolutions (R12's) | 0.253 | +2.0 | ✓ helps, smaller than on seen people (+2.5), 3.5× slower |
+| R21 | `max_shift=6 channel_dropout=0.1` | 0.230 | −0.3 | – no effect (it hurt on seen people, R4) |
+| R19 | `adversarial_weight=1.0` (domain confusion, §10.3) | 0.190 | −4.3 | ✗ hurts: drop |
+
+**The participant curve** (`--train-subjects N`: the first N of the 8 training participants):
+
+| Training participants | 2 | 4 | 6 | 8 |
+|---|---|---|---|---|
+| Unseen-people score | 0.161 | 0.183 | 0.187* | 0.233 |
+
+\* stopped at epoch 8 (best epoch 3): unreliable. The trend, about +3.6 points per doubling and
+not flattening, is the EEG version of the "more pretraining data" lesson of BiT
+(Kolesnikov et al., 2020): **more people is the biggest lever.** Which people matters too (one
+seed per point).
+
+### 10.2 Alljoined-1.6M: the final's format
+
+- **Data:** 20 participants, 32-channel Emotiv (Cz, FCz, AFz, Fp1/2, F1/2/5/6, CP1–6, P1–8, PO3/4/7/8,
+  O1/2, Oz, POz, Pz), 120 Hz, ~1.66M windows (train 1,065,150 · val 270,466 · test 324,294).
+  NeuralFetch study `Xu2025Alljoined` (licence CC-BY-NC-ND-4.0, `ALLJOINED_ACCEPT_LICENCE=1`).
+- **Same images as THINGS-EEG2:** 16,540 training + 200 test images; the 200 test images' DINOv2
+  embeddings match THINGS-EEG2's one-to-one (cosine 1.000000). Files are numbered (`stim_file`),
+  without concept names. Consequences: joint training is aligned, and **Alljoined's test images are
+  the warm-up leaderboard's**, so its test split is never trained on.
+- **Validation split** (`--dataset xu2025alljoined --holdout-subjects`): participants 2, 4, 14, 18
+  held out (`configs/heldout_subjects_xu2025alljoined.json`), scored on their test-split windows
+  (200 images × ~80 repetitions, 64,895 windows, ~800 queries, SE ≈ 1.6 points); training on the
+  other 16 participants (1,068,339 windows).
+- **First results (round 4):** A1 (R6 recipe) **0.2775** (a one-epoch peak; neighbours ≈ 0.265),
+  A2 (+ `window_norm`) 0.2612 (stopped early at 14). Inconclusive at this noise level; re-test with
+  smoothed early stopping (§10.3).
+- **All 32 Alljoined channels exist in THINGS-EEG2's 63**, so THINGS-EEG2 can be reduced to the
+  same montage: `--extra-cache cache/windows/things_eeg2` trains on Alljoined's 16 participants +
+  THINGS-EEG2's 10 (train + val only), 1,736,739 windows.
+- **A4 (joint training, 26 participants): 0.2412** (best epoch 8 of 13), its whole curve 2–3
+  points below A1's. More people helped *within* THINGS-EEG2 (§10.1), but adding THINGS-EEG2
+  as-is to Alljoined doesn't: the setups differ (lab-grade 63-channel cap reduced to 32 vs Emotiv,
+  signal amplitudes, 200 vs 100 ms image presentations). Next: joint + `window_norm` (removes
+  amplitude differences), and two-stage training (both datasets, then Alljoined only).
+
+### 10.3 New training options (all off by default; defaults train bit-identically)
+
+| Option | What it does | Source |
+|---|---|---|
+| `window_norm` | per-window channel z-scoring in `forward` (also at inference; a marker buffer in the weights switches it back on) | standard EEG normalisation; REVE's preprocessing |
+| `adversarial_weight` | **domain confusion**: a training-only classifier learns the participant from detached embeddings, the encoder is pushed to make its output uniform. A gradient-reversal version (DANN) first made the classifier confidently *wrong* (accuracy below chance), keeping the information; neither removed it for a fresh probe on a toy problem, and R19 shows it hurts | Ganin & Lempitsky 2015 (DANN); Tzeng et al. 2015 (domain confusion); Elazar & Goldberg 2018 (adversarial removal often fails) **(unverified)** |
+| `smooth=k` | early stopping and best-epoch selection on the mean of the last k held-out scores (only full windows); next rounds use `smooth=3 patience=10` | motivated by R24/A1/A2 stopping on noise spikes |
+| `--train-subjects N` | train on the first N remaining participants (participant curve) | |
+| `--extra-cache DIR` | joint training with another dataset's window cache, channels mapped by name, subject ids offset | |
+
+### 10.4 REVE transfer, stage 1 (round 5)
+
+REVE (El Ouahidi et al., 2025; `brain-bzh/reve-base`, 69M parameters, pretrained on EEG from many
+people) makes one 512-d token per channel for a 1 s window, placing channels by name (any
+montage). Frozen and **averaged over channels** (the official probe), it reached only ~0.13.
+
+- **Stage 1** keeps every channel's token and trains an **attention-pooling head**
+  (`AttentionPoolHead`: 8 learned queries attend over the channel tokens, then an MLP to the
+  1536-d embedding): `scripts/cache_reve_tokens.py` runs frozen REVE once (official preprocessing:
+  200 Hz, per-window z-score, clamp ±15; float16 tokens), `scripts/train_on_tokens.py` trains the
+  head with `Solver.fit` unchanged, `submission/reve_submission.py` is the Codabench solver (the
+  worker image installs braindecode and stages `brain-bzh/reve-base`; only the head is shipped).
+  The exported submission on raw windows matches the head on cached tokens (cosine 1.000000).
+- **Result (A3, round 5): 0.245** on Alljoined's unseen participants (best epoch 9 of 14; caching
+  all 1.66M windows' tokens took 19 min, the head 18 min). Keeping the channel tokens is far
+  better than the official channel average (~0.13, on THINGS-EEG2), but still ~2 points below our
+  from-scratch encoder (A1 ≈ 0.265–0.278).
+- **Next:** ensemble A3 with A1 (different representations; both trained on the same 16 people).
+  **Stage 2** (fine-tune REVE's top layers on cached intermediate tokens) only if REVE adds
+  something there. Full fine-tuning costs ~2 h per Alljoined epoch on the Mac: too slow.
+
+### 10.5 Where this leaves the final recipe
+
+(Updated Oct 22.) In: training on Alljoined (16 → all 20 participants for the final), smoothed
+early stopping, channel selection by name, seed ensembles. Out: participant-adversarial training,
+augmentation, joint training with THINGS-EEG2 (A4, B3), `window_norm` on Alljoined (B2: no gain).
+Open: wider convolutions on Alljoined (B5), two-stage training (B4), more fine-tuned REVE members.
+**Current best: two-stage encoder + fine-tuned REVE (B4 + C1 = 0.3237, §11.7); best single model:
+two-stage B4 (0.3083 smoothed).** Spatial attention
+(only if the final's montage differs from Alljoined's), repetition averaging.
+
+### 10.6 Oct 22: Alljoined re-tests, the channel layout, and REVE's real recipe
+
+**Round 7** (Alljoined, 4 unseen participants, `smooth=3 patience=10`; scores = best 3-epoch mean):
+
+| Run | Change | Smoothed best | Mean of last 10 epochs |
+|---|---|---|---|
+| B1 | R6 recipe on 16 Alljoined participants | **0.2725** (epoch 22) | 0.252 |
+| B2 | + `window_norm` | 0.2696 (epoch 19) | 0.254 |
+| B3 | + THINGS-EEG2 joint training (`--extra-cache`) + `window_norm` | 0.2471 (epoch 15) | 0.237 |
+
+- `window_norm` gives nothing on Alljoined (it gave +4.1 on THINGS-EEG2's unseen people), probably
+  because Emotiv recordings vary less in amplitude, or because the pipeline's per-recording scaling
+  already removes it.
+- **Joint training hurts even with normalisation.** An Alljoined model on THINGS-EEG2's warm-up
+  test scores only **0.066** top-5 (chance 0.025), through the same 32 channels: the datasets differ
+  deeply (lab-grade cap vs Emotiv, 200 vs 100 ms image presentations, so differently timed
+  responses). The final model is trained on Alljoined.
+- **Round 8 results** (smoothed best):
+
+  | Run | Change | Smoothed | vs B1 |
+  |---|---|---|---|
+  | B5 | wider convolutions (64/128/256) | 0.2754 | +0.3 (no real gain on Alljoined) |
+  | **B4** | **two-stage**: B3's joint THINGS-EEG2 + Alljoined model (`--init-from`), fine-tuned on Alljoined only, `window_norm`, lr 3e-4 | **0.3083** (raw 0.3137) | **+3.6** |
+  | B6 | B1 with seed 2 | 0.2787 | +0.6: a single run moves by ~±0.5 with the seed |
+
+  **Two-stage training is our best single model.** Mixing THINGS-EEG2 into training hurts (B3), but
+  using it to *pretrain* and then specialising on Alljoined helps a lot: the "learn from more
+  people, then specialise" idea, as with REVE (§11). Round 11 trains two more two-stage models
+  (seeds 2 and 3, each with its own joint stage) for the ensemble.
+
+**Picking channels by name (`channels.json`).** `train_solver.py` now writes the training montage
+next to the weights; `load_model` feeds the model those channels by name from the platform's input
+(case-insensitive, any order), zero-filling any missing channel with a warning. Submissions without
+`channels.json` behave as before. A dry-run submission (`submissions/dryrun_alljoined32_b1`: B1 +
+`channels.json`) runs on the warm-up's 63-channel input and reproduces B1's Alljoined score
+(0.2737): it checks the final-phase mechanics on Codabench before the sealed phase.
+
+**Smoothed early stopping** (`Solver.smooth=k`): best-epoch selection and patience on the mean of
+the last k held-out scores, only for full windows; `run_config.json` reports the epoch kept.
+**Two-stage training:** `train_solver.py --init-from WEIGHTS`.
+
+**REVE's real recipe.** NeuralBench reports frozen-looking "probe" numbers for REVE (84.75% top-5
+on THINGS-EEG2, above our best warm-up model), but its config (`neuralbench/models/reve.yaml`)
+leaves no layer frozen: it is **full fine-tuning** (`finetune_mean` in
+`defaults/downstream_wrappers.yaml`): final-layer tokens averaged, a linear layer to the 1536-d
+embedding, CLIP loss, AdamW lr 1e-4, weight decay 0.05, one-cycle schedule, batch 64, up to 40
+epochs, on NeuralBench's own REVE preprocessing (200 Hz, 0.5–99.5 Hz, standard scaling, clamp 15;
+a Codabench submission instead receives the competition's 120 Hz input). NeuralBench also ships
+**LP-FT** (Kumar et al., 2022): fit the head on the frozen backbone, then fine-tune everything,
+which is exactly our stage 1 → stage 2. REVE has 22 residual transformer layers of 3.14M parameters;
+**stage 2** fine-tunes the top layers from cached intermediate tokens (full fine-tuning costs
+~1–1.5 h per epoch on the Mac).
+
+**Competition update (Oct 22).** Warm-up and registration close Nov 1; sealed phase Nov 5–21 with
+**5 sealed uploads per participant in total**. Local validation therefore decides uploads again:
+finalists get several seeds (and possibly participant cross-validation) before an upload; final
+picks are seed ensembles (more robust in the reproducibility audit).
+
+---
+
+## 11. Fine-tuning REVE, a foundation model for EEG
+
+This chapter is self-contained: it explains why we transfer from a pretrained EEG model, how REVE
+works, the four ways to use it, and exactly what we implemented. It doubles as presentation material
+(slide outline in §11.9).
+
+### 11.1 Why a foundation model
+
+- **The final scores unseen people**, and the biggest lever we found for unseen people is *more
+  people in training* (§10.1). We only have 16–20 Alljoined participants. A foundation model brings
+  what we can't collect: **REVE was pretrained on EEG from about 25,000 subjects** (the paper's
+  title), so its features have already seen enormous between-person variability. That is the
+  "Big Transfer" lesson (Kolesnikov et al., 2020): when the test data differs from the training
+  data, large and varied pretraining matters most.
+- **Evidence on our own benchmark:** NeuralBench's reference result for REVE on THINGS-EEG2 is
+  **84.75% top-5** (Banville et al., 2026, Table 1), above our best warm-up model (80.05%) and far
+  above EEGNet (28.13%).
+- **Our first REVE tests were far below that**: ~0.13 frozen and channel-averaged, 0.245 frozen with
+  our attention head (Alljoined, unseen people). The difference: **NeuralBench fine-tunes REVE**
+  (§10.6). This chapter is about closing that gap.
+
+### 11.2 How REVE works
+
+REVE (El Ouahidi, Lys, Thölke, Farrugia, Pasdeloup, Gripon, Jerbi & Lioi, *REVE: A Foundation Model
+for EEG — Adapting to Any Setup with Large-Scale Pretraining on 25,000 Subjects*, NeurIPS 2025;
+implementation: `braindecode.models.REVE`, weights `brain-bzh/reve-base`) is a transformer that
+turns an EEG recording into one token per channel per second, whatever the headset:
+
+```mermaid
+flowchart TB
+    X["EEG window: C channels × 200 samples<br/>(1 s at 200 Hz; any montage)"]
+    PATCH["Cut each channel into 1-second patches<br/>(200 samples, overlap 20): C × P patches"]
+    EMB["Patch embedding: Linear 200 → 512<br/>one 512-d vector per (channel, patch)"]
+    POS["4D position of each token: (x, y, z) of its electrode<br/>from a bank of standard 10-20/10-10/10-05 names, + time t<br/>Fourier features (4 frequencies) + MLP, LayerNorm"]
+    ADD["token = patch embedding + position embedding<br/>sequence of C × P tokens (C = 32 → 32 tokens for 1 s)"]
+    TF["22 transformer layers (residual):<br/>x = x + Attention(x)   (8 heads × 64)<br/>x = x + FeedForward(x)   (GEGLU, 512 → 1362 → 512)"]
+    OUT["Output: one 512-d token per (channel, patch)<br/>= 'what this electrode saw, in context of all others'"]
+    X --> PATCH --> EMB --> ADD --> TF --> OUT
+    POS --> ADD
+```
+
+| Property | REVE-Base |
+|---|---|
+| Parameters | 69.2M (69.08M in the 22 transformer layers, 3.14M each) |
+| Token size | 512 |
+| Attention | 8 heads × 64 dimensions |
+| Feed-forward | GEGLU, hidden size 512 × 2.66 ≈ 1362 |
+| Input | **200 Hz**, at least 1 s; z-scored per channel, clipped at ±15 (as in pretraining) |
+| Positions | 4D (electrode x, y, z + time), Fourier embedding (4 frequencies) + MLP: **any montage** |
+| Pretraining | self-supervised, on EEG from ~25,000 subjects (masked reconstruction, per the paper; check §-level details there) |
+
+Two properties matter for us:
+- **Montage independence:** electrodes are placed by *name* via a position bank, like our spatial
+  attention (§9.2) but learned on far more data. The same weights read THINGS-EEG2's 63 channels and
+  Emotiv's 32.
+- **Per-channel tokens:** for a 1-second window there is exactly one patch, so the output is one
+  512-d token per channel: (B, 32, 512) on Alljoined.
+
+### 11.3 Feeding it our data
+
+| | NeuralBench's REVE runs | Our submissions (Codabench input) |
+|---|---|---|
+| Sampling rate | 200 Hz (its own preprocessing) | competition input is **120 Hz**: linearly interpolated to 200 Hz |
+| Band | 0.5–99.5 Hz | ≤ 60 Hz (the 120 Hz input can't hold more) |
+| Normalisation | standard scaling per recording, clamp 15 | per-window channel z-score, clamp 15 (the official `REVEEncoder`) |
+| Baseline correction | none | competition input is baseline-corrected |
+
+So our REVE sees a slightly different signal from pretraining (no content above 60 Hz). Frozen, that
+mismatch costs; fine-tuning lets the top layers adapt to it. Implementation: `FrozenREVE.tokens` in
+`submission/reve_submission.py` (resample → z-score → clamp → REVE).
+
+### 11.4 Four ways to use a pretrained model
+
+```mermaid
+flowchart LR
+    A["1 · Frozen probe<br/>REVE frozen, tokens averaged,<br/>linear map to the image embedding<br/>(official solver)"]
+    B["2 · Stage 1<br/>REVE frozen, ALL channel tokens,<br/>attention-pooling head<br/>(our A3)"]
+    C["3 · Stage 2 (LP-FT)<br/>start from stage 1,<br/>also train REVE's top K layers<br/>(our C1, K = 4)"]
+    D["4 · Full fine-tuning<br/>all 22 layers + head<br/>(NeuralBench: 84.75%)"]
+    A -->|"keep where on the scalp"| B -->|"adapt the features"| C -->|"adapt everything"| D
+```
+
+| Approach | Trains | Cost per Alljoined epoch on the Mac | Result |
+|---|---|---|---|
+| 1. Frozen probe (mean over channels) | a linear layer | seconds (on cached features) | ~0.13 (THINGS-EEG2 test) |
+| 2. Stage 1: tokens + attention head (A3) | the head (6.8M) | ~1 min (on cached tokens) | **0.245** (Alljoined, unseen people) |
+| 3. Stage 2: top 4 layers + head (C1) | 12.6M + 6.8M | ~8 min (on layer-18 tokens) | **0.2592** smoothed (best epoch 9; overfits after) |
+| 4. Full fine-tuning | 69M + head | ~1–1.5 h | not tried (NeuralBench: 84.75% on THINGS-EEG2, seen people) |
+
+**Why stage 2 starts from stage 1 (LP-FT).** Fine-tuning a pretrained network with a *randomly
+initialised* head sends large, meaningless gradients into the pretrained layers during the first
+steps and can damage features learned during pretraining, which hurts most on out-of-distribution
+data (Kumar et al., 2022, "Fine-Tuning can Distort Pretrained Features and Underperform
+Out-of-Distribution"). Fitting the head first on the frozen model (linear probing, LP), then
+fine-tuning (FT), avoids this. NeuralBench ships this recipe (`lpft_*` wrappers). Our stage 1 *is*
+the LP step: stage 2 starts from A3's trained head.
+
+**Why only the top layers.** Lower layers of a pretrained network tend to hold generic features
+(here: oscillations, waveform shapes, spatial patterns), upper layers the more task-specific ones.
+Fine-tuning the top few layers adapts what matters most at a fraction of the cost, and leaves less
+room to overfit our 16 participants.
+
+### 11.5 Our implementation, step by step
+
+1. **Cache intermediate tokens once** (`scripts/cache_reve_tokens.py --layer 18`): run frozen REVE on
+   every window, keep the tokens after layer 18 (`model(X, return_output=True)[18]`), float16,
+   `cache/reve_tokens/xu2025alljoined_L18/` (~54 GB for 1.66M windows × 32 × 512). The bottom 18
+   layers never change during stage 2, so they are never recomputed: each epoch only runs 4 layers.
+2. **The stage-2 model** (`REVETopFinetune` in `submission/reve_submission.py`): copies of REVE's
+   pretrained layers 19–22 (trainable), then the attention head
+   (`AttentionPoolHead`: LayerNorm, 8 learned queries attending over the 32 channel tokens, MLP
+   4096 → 1024 → 1536, L2 normalisation). Forward: `x = x + attn(x); x = x + ff(x)` for each layer,
+   then the head, exactly REVE's residual blocks.
+3. **Initialise from stage 1** (`--init-head submissions/m5_a3_reve_head/weights.pt`). Check: at
+   initialisation, the stage-2 model on layer-18 tokens gives exactly A3's predictions on final
+   tokens (cosine 1.000000).
+4. **Train** (`scripts/train_on_tokens.py --top-layers 4`), reusing `Solver.fit` unchanged: CLIP
+   (InfoNCE) loss with learnable temperature, **AdamW lr 1e-4, weight decay 0.05** (NeuralBench's
+   REVE settings; 10× lower lr than our from-scratch encoder, as usual for pretrained weights),
+   gradient clipping 1.0, batch 256, up to 15 epochs, early stopping on the **smoothed** held-out
+   score (mean of 3 epochs, patience 5), per-epoch checkpoints with `--resume`.
+5. **Select on unseen people:** Alljoined participants 2, 4, 14, 18 never trained on, scored on the
+   200 test images (~80 repetitions each), as in the final.
+6. **Ship it** (`submission/reve_submission.py` as `submission.py`): on Codabench, REVE-Base loads
+   from the worker's staged Hugging Face cache (no download), runs to layer 22 − K, then the shipped
+   fine-tuned layers + head; K is read from the weights. Only trained parameters ship: ~77 MB for
+   K = 4 (50 MB of layers + 27 MB of head). Check: the exported submission on raw windows matches the
+   model on cached tokens (cosine 1.00000).
+
+```mermaid
+flowchart TB
+    subgraph Once["Once (frozen, ~20 min)"]
+        W["1.66M Alljoined windows<br/>(window cache)"] --> R18["REVE layers 1–18<br/>(frozen)"] --> T["Layer-18 tokens<br/>float16 cache, 54 GB"]
+    end
+    subgraph Epochs["Every epoch (trainable)"]
+        T --> L["REVE layers 19–22<br/>(fine-tuned, lr 1e-4)"] --> H["Attention head<br/>(from A3)"] --> E["Predicted image embedding"]
+        E --> LOSS["CLIP loss vs DINOv2 embedding"]
+    end
+    subgraph Ship["Codabench"]
+        RAW["Raw window"] --> FULL["REVE 1–18 (staged weights)"] --> TOP["Shipped layers 19–22 + head"] --> PRED["Prediction"]
+    end
+```
+
+### 11.6 Costs on the Mac (Apple GPU)
+
+| Step | Time |
+|---|---|
+| Final-layer tokens, all of Alljoined (stage 1) | 19 min |
+| Stage-1 head training | 18 min (14 epochs) |
+| Stage 2, K = 6, per window per epoch | ~3 ms (GPU shared with another run) |
+| Full fine-tuning, per Alljoined epoch | ~1–1.5 h (estimate from batch-64 timing) |
+
+### 11.7 Results (unseen Alljoined participants, top-5 subject-aggregated)
+
+Single models (best smoothed held-out score during training):
+
+| Model | Score |
+|---|---|
+| Our encoder from scratch (B1) | 0.2725 |
+| Frozen REVE + attention head (A3, stage 1) | 0.245 |
+| REVE top-4 fine-tuned + head (C1, stage 2) | 0.2592 (epoch 9) |
+
+C1's curve: 0.248 (epoch 4) → **0.259 (epoch 9)** → 0.223 (epoch 14) while the training loss kept
+falling (5.17 → 4.6): fine-tuning helps over frozen REVE (+1.4), but the top layers start
+memorising the 16 training participants after ~9 epochs.
+
+**Ensembles** (`eval_local.py` on raw windows, the saved models; mean of L2-normalised predictions):
+
+| Ensemble | Top-5 | Top-1 | vs B1 alone |
+|---|---|---|---|
+| B1 alone | 0.2737 | 0.079 | – |
+| B1 + B2 (two of our encoders) | 0.2800 | 0.080 | +0.6 |
+| B1 + C1 (our encoder + fine-tuned REVE) | 0.2888 | 0.104 | +1.5 |
+| **B1 + B2 + C1** | **0.3075** | 0.096 | **+3.4** |
+
+**REVE is most useful as an ensemble member:** averaging two of our encoders gives +0.6, adding
+fine-tuned REVE gives +3.4, our first score above 0.30 on unseen people. The two model families
+make different mistakes (REVE learned from ~25,000 people; our encoder only from these 16).
+With the two-stage model B4 (round 8):
+
+| Ensemble | Top-5 | Top-1 |
+|---|---|---|
+| B4 alone | 0.3137 | 0.098 |
+| B4 + B1 + B6 (adding weaker encoders) | 0.2975 | 0.096 |
+| **B4 + C1 (two-stage + fine-tuned REVE)** | **0.3237** | **0.104** |
+| B4 + B1 + B6 + C1 | 0.3212 | 0.105 |
+
+**Ensemble members must be strong:** weaker encoders dilute B4, while REVE adds ~+1 because it is
+different. The final ensemble's shape: several two-stage models (seeds) + fine-tuned REVE models.
+Queued: round 10 (REVE: gentler lr 3e-5, and C1's recipe with seed 2), round 11 (two-stage seeds 2, 3).
+
+### 11.8 What we expect, and what could go wrong
+
+- **Upside:** if fine-tuning closes part of the frozen-vs-fine-tuned gap that NeuralBench shows on
+  THINGS-EEG2, REVE becomes our main final candidate, possibly ensembled with our encoder (different
+  representations make good ensembles).
+- **Risks:** 16 participants may be too few to fine-tune 12.6M pretrained parameters without
+  overfitting (early stopping on unseen people guards against it); the 120 Hz input lacks the
+  60–100 Hz band REVE was pretrained with; ~77 MB per model makes large ensembles heavy to upload.
+- **Next steps:** gentler fine-tuning (lower lr, fewer layers, regularisation toward the pretrained
+  weights); more REVE members for the ensemble; the final ensemble retrained on all 20 participants.
+
+### 11.9 Slide outline (10 minutes)
+
+1. **The problem:** the final scores 11 people the model has never seen; on unseen people every
+   method drops to about a third of its seen-people score (0.64 → 0.23 for ours).
+2. **The lever:** more people in training (our participant curve: +3.6 points per doubling), but we
+   only have 16–20.
+3. **Foundation models:** pretrained on ~25,000 subjects; "Big Transfer" for EEG.
+4. **REVE in one diagram** (§11.2): patches → 4D positions → 22 transformer layers → a token per
+   electrode; any headset.
+5. **The surprise:** NeuralBench's REVE scores 84.75% on THINGS-EEG2, our frozen REVE ~0.13: the
+   difference is fine-tuning.
+6. **Four ways to transfer** (§11.4 diagram and table).
+7. **LP-FT:** fit the head first, then fine-tune (Kumar et al., 2022), and why only the top layers.
+8. **Engineering on a laptop:** cache the frozen bottom once (§11.5 diagram), fine-tune 4 layers;
+   ship only what changed.
+9. **Checks that make it trustworthy:** identical predictions at initialisation, exported model =
+   trained model, selection on unseen people.
+10. **Results** (§11.7): fine-tuned REVE alone 0.259 (frozen 0.245), but in an ensemble with our
+    encoders **0.3075**, against 0.2737 for our best single encoder: the two families complement each other.
+

@@ -246,7 +246,9 @@ weights themselves, so the same `submission.py` works for any encoder width or e
 
 ---
 
-## 8. Where we are and what's running
+## 8. Where we are (Oct 22)
+
+### Warm-up leaderboard (THINGS-EEG2: same 10 people, 63 channels)
 
 | Date | Change | Held-out top-5 | Codabench top-5 (subject-agg) |
 |---|---|---|---|
@@ -254,23 +256,72 @@ weights themselves, so the same `submission.py` works for any encoder width or e
 | Oct 19 | Our encoder + CLIP loss, ensemble | – | 0.54–0.55 |
 | Oct 19 | **Learnable temperature** | 0.5175 | 0.65 |
 | Oct 19 | **+25% data** (NeuralBench's val split) | 0.5525 | 0.71 |
-| Oct 20 | Final: all concepts, 3-seed ensemble | – | **0.74** (top-1 0.40) |
-| Oct 20 | R6: 40 epochs instead of 20 | **0.590** | (forecast 0.75–0.78) |
-| Oct 20 | R15: temperature floor 0.005 | 0.564 (stopped at epoch 32) | no gain |
-| Oct 20 | R7: average 1–4 repetitions | 0.555 (cut short by early stopping) | to re-test |
+| Oct 20 | Final: all concepts, 3-seed ensemble | – | 0.74 (top-1 0.40) |
+| Oct 20 | R6: **40 epochs** instead of 20 | 0.590 | |
+| Oct 21 | **Final: R6 recipe, 3-seed ensemble** | – | **0.78 (top-1 0.44)** |
+| Oct 21 | R12: **wider convolutions** (64/128/256 filters) | **0.615** | |
+| Oct 22 | **Final: R12 recipe (wider convolutions), 3-seed ensemble** | – | **local 0.8005 (top-1 0.4655)**; upload pending a Codabench outage |
 
-Queued (`logs/round2.status`): R8 repetition averaging (#17), R9–R11 cosine schedule and
-larger batches (#18), R12–R14 wider encoder (#27).
+No gain, on held-out concepts: temperature floor 0.005 (R15), cosine schedule (R9, 0.570), batch
+512 / 1024 with cosine (R10 0.581, R11 0.586: nearly R6's score in 62 instead of 105 minutes),
+repetition averaging (R7/R8, cut short by early stopping, to re-test), a wider head only (R13,
+trailing, cancelled).
 
-### The big caveat for the final phase
+### The final phase: unseen people, 32 channels
 
-The sealed final phase (Oct 28 – Nov 21) is **not** THINGS-EEG2. It's a private
-**Alljoined** cohort: **11 new participants, 32 channels** (Emotiv headset), new images.
-Everything above transfers as a recipe, but the models need to be retrained for the 32-channel
-input and must generalise to **unseen people**, which EEG notoriously struggles with (skull
-shape, electrode placement and brain anatomy differ). That's milestone M4 (#21: THINGS-EEG2
-mapped onto the Emotiv montage + joint training with Alljoined-1.6M) and #4 (validation on
-held-out participants).
+The sealed final is a private **Alljoined** cohort: **11 new participants, 32-channel Emotiv
+headset**, new images. Updated schedule (organisers, Oct 22): warm-up and registration close
+**Nov 1**; the sealed phase runs **Nov 5 – Nov 21** with only **5 sealed uploads per participant in
+total**, so local validation decides what we upload. We now measure exactly the final's setting:
+
+- **THINGS-EEG2 held-out participants** (`--holdout-subjects`, participants 6 and 7 never seen,
+  10 galleries): the R6 recipe scores **0.233** on unseen people, against **0.635** when the
+  same two people were in training. Unseen people are the main problem.
+- **Alljoined-1.6M** (downloaded Oct 21: 20 participants, 32 channels, ~1.66M windows, exactly
+  THINGS-EEG2's images): trained on 16 participants, scored on 4 unseen ones over the 200 test
+  images: **≈ 0.27** (A1).
+
+What helps on unseen people (THINGS-EEG2, one change each from 0.233):
+
+| Change | Unseen-people score |
+|---|---|
+| **Per-window normalisation** (`window_norm`) | **0.274** (+4.1) |
+| Wider convolutions | 0.253 (+2.0, 3.5× slower) |
+| Spatial attention (montage-independent input layer) | 0.255 (+1.6 on average) |
+| Augmentation (time shift, channel dropout) | 0.230 (none) |
+| Participant-adversarial training | 0.190 (hurts) |
+| **Fewer training participants:** 2 / 4 / 6 / 8 | 0.161 / 0.183 / 0.187 / 0.233 |
+
+**More participants is the biggest lever within one dataset.** Two ways to get more people,
+tried on Alljoined's unseen participants (A1, from scratch: ≈ 0.265–0.278):
+
+| Run | Change | Unseen-people score |
+|---|---|---|
+| A4 | joint training: + THINGS-EEG2's 10 participants (reduced to Alljoined's 32 channels) | 0.241 |
+| A3 | frozen **REVE** (an EEG model pretrained on many people) + attention-pooling head | 0.245 |
+
+Neither beats Alljoined alone. Oct 22 re-tests with smoothed early stopping (best 3-epoch mean):
+
+| Run | Change | Unseen-people score (smoothed) |
+|---|---|---|
+| B1 | Alljoined only (16 participants) | **0.2725** |
+| B2 | + per-window normalisation | 0.2696 (no gain here, unlike THINGS-EEG2's +4.1) |
+| B3 | + THINGS-EEG2 joint training + per-window normalisation | 0.2471 |
+
+**THINGS-EEG2 doesn't help Alljoined**: an Alljoined model even scores only 0.066 on THINGS-EEG2's
+test (chance 0.025). The two datasets differ too much (lab-grade cap vs Emotiv, 200 vs 100 ms
+presentations). So the final model will be trained on Alljoined.
+
+**REVE, fine-tuned, as an ensemble member.** NeuralBench's reference (84.75% top-5 on THINGS-EEG2,
+above our 0.80) **fine-tunes REVE**; frozen, it gave 0.245 on Alljoined's unseen people. Fine-tuning
+its top 4 layers gives 0.259 alone, but **averaged with two of our encoders: 0.3075**, against 0.2737
+for our best single encoder, our first score above 0.30 on unseen people.
+
+**Two-stage training is the best single model:** pretrain on THINGS-EEG2 + Alljoined, then fine-tune
+on Alljoined alone: **0.308** (smoothed), +3.6 over Alljoined alone. Combined with fine-tuned REVE:
+**0.324**, our best so far (our target for Nov 5: ≥ 0.35). The whole REVE story, from its architecture to our fine-tuning implementation, with
+diagrams and a slide outline: [architecture_deep_dive.md](architecture_deep_dive.md) §11.
+Details in [architecture_deep_dive.md](architecture_deep_dive.md) §9–§10.
 
 ---
 
@@ -347,6 +398,13 @@ verified offline; search the title if a link doesn't resolve.
     2017)**, arXiv:1608.03983 (cosine schedule).
 15. **Goyal et al., "Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour" (2017)**,
     arXiv:1706.02677. Linear learning-rate scaling and warm-up for big batches (#18).
+
+### Generalising to new people (added Oct 21; from memory, check titles)
+- **Kolesnikov et al., "Big Transfer (BiT)" (ECCV 2020).** More (and more varied) pretraining data
+  matters most when the test data differs from training: our "more participants" lever.
+- **El Ouahidi et al., REVE (2025).** The EEG foundation model we transfer from (§8, deep dive §10.4).
+- **Ganin & Lempitsky (2015), DANN, and Tzeng et al. (2015), domain confusion.** Adversarial
+  domain invariance, which we tried for participants (it hurt: deep dive §10.3).
 
 ### EEG fundamentals (if the neuroscience side is new)
 16. **MNE-Python tutorials** (mne.tools): "Overview of MEG/EEG analysis", epochs, evoked
