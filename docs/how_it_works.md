@@ -323,7 +323,8 @@ alone. **Best ensemble: three two-stage seeds + one fine-tuned REVE ≈ 0.335** 
 of six models scored; REVE should get about a quarter of the weight). Target for Nov 5: ≥ 0.35.
 
 **Final models (Oct 23):** the recipe retrained on all 20 Alljoined participants with fixed epoch
-counts (three two-stage seeds + REVE), to be packaged as one Codabench submission. Full details:
+counts (three two-stage seeds + REVE), packaged as one Codabench submission (87 MB, contract check
+passed): our first sealed-phase candidate. Full details:
 [architecture_deep_dive.md](architecture_deep_dive.md) §12. The whole REVE story, from its architecture to our fine-tuning implementation, with
 diagrams and a slide outline: [architecture_deep_dive.md](architecture_deep_dive.md) §11.
 Details in [architecture_deep_dive.md](architecture_deep_dive.md) §9–§10.

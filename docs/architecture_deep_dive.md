@@ -1307,10 +1307,30 @@ Logged in `logs/round12.status`; outputs in `submissions/final_aj_*`. Expected l
 16-participant versions: **~0.33–0.34 top-5 on unseen people**, possibly a little more with four
 extra training participants (≈ +1, from the participant curve).
 
-**Packaging (to do):** one Codabench ZIP holding both model families: a combined solver that loads
-the three two-stage encoders (mean, weight 3/4) and the REVE model (weight 1/4), picks the 32
-channels by name (`channels.json`), and stays small enough to upload (~15 MB of encoders + ~77 MB
-for REVE). Checked locally with `make test-submission`, and as a dry run on the warm-up.
+**Packaging (done, Oct 23).** `scripts/package_ensemble.py` builds one Codabench folder holding both
+model families; `submission/ensemble_submission.py` is its `submission.py`:
+
+| File in the ZIP | Content |
+|---|---|
+| `submission.py` | the weighted-ensemble loader (`ensemble_submission.py`) |
+| `encoder_model.py`, `reve_model.py` | the encoder and REVE solver code (`submission.py`, `reve_submission.py`) |
+| `weights_1.pt` … `weights_3.pt` | the three two-stage encoders (5.3 MB each) |
+| `reve_1.pt` | REVE's fine-tuned layers 19–22 + head (77.6 MB) |
+| `channels.json` | the training montage (Alljoined's 32 channels) |
+| `ensemble.json` | groups and weights: encoders 0.75, REVE 0.25 |
+
+Prediction = 0.75 × mean of the encoders' L2-normalised predictions + 0.25 × REVE's. Channels are
+picked once by name: encoders get zeros for a missing channel, REVE simply uses the channels present.
+
+Checks:
+- **Same numbers as the search:** the identical package built from the 16-participant models
+  (`submissions/val_ens_2stage3_reve`) scores **0.3375 / 0.0975** on the held-out participants, exactly
+  the search's value for "three two-stage + C2".
+- **Final package** (`submissions/final_aj_ens_2stage3_reve`, ZIP 87 MB, `dist/candidates/final_aj_ens_2stage3_reve.zip`):
+  `make test-submission` passes (locally it needs `REVE_POSITIONS_PATH` and `HF_HOME` pointing at our
+  caches; Codabench's worker sets them); on the warm-up test (63-channel THINGS-EEG2, channels picked
+  by name) it scores 0.3965 (its stage 1 saw THINGS-EEG2's people), and 0.475 on Alljoined's former
+  validation people (now in training: a sanity check, not an estimate).
 
 ### 12.6 Spending the sealed uploads
 

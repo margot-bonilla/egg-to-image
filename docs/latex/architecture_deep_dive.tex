@@ -4046,19 +4046,91 @@ more with four extra training
 participants (≈ +1, from the participant
 curve).
 
-\textbf{Packaging (to do):} one
-Codabench ZIP holding both model
-families: a combined solver that loads
-the three two-stage encoders (mean,
-weight 3/4) and the REVE model (weight
-1/4), picks the 32 channels by name
-(\texttt{channels.json}), and stays
-small enough to upload
-(\textasciitilde15 MB of encoders +
-\textasciitilde77 MB for REVE). Checked
-locally with
-\texttt{make\ test-submission}, and as a
-dry run on the warm-up.
+\textbf{Packaging (done, Oct 23).}
+\texttt{scripts/package\_ensemble.py}
+builds one Codabench folder holding both
+model families;
+\texttt{submission/ensemble\_submission.py}
+is its \texttt{submission.py}:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.3243}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.6757}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+File in the ZIP
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Content
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{submission.py} & the
+weighted-ensemble loader
+(\texttt{ensemble\_submission.py}) \\
+\texttt{encoder\_model.py},
+\texttt{reve\_model.py} & the encoder
+and REVE solver code
+(\texttt{submission.py},
+\texttt{reve\_submission.py}) \\
+\texttt{weights\_1.pt} \ldots{}
+\texttt{weights\_3.pt} & the three
+two-stage encoders (5.3 MB each) \\
+\texttt{reve\_1.pt} &
+REVE\textquotesingle s fine-tuned layers
+19--22 + head (77.6 MB) \\
+\texttt{channels.json} & the training
+montage (Alljoined\textquotesingle s 32
+channels) \\
+\texttt{ensemble.json} & groups and
+weights: encoders 0.75, REVE 0.25 \\
+\end{longtable}
+}
+
+Prediction = 0.75 × mean of the
+encoders\textquotesingle{} L2-normalised
+predictions + 0.25 ×
+REVE\textquotesingle s. Channels are
+picked once by name: encoders get zeros
+for a missing channel, REVE simply uses
+the channels present.
+
+Checks:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Same numbers as the search:}
+  the identical package built from the
+  16-participant models
+  (\texttt{submissions/val\_ens\_2stage3\_reve})
+  scores \textbf{0.3375 / 0.0975} on the
+  held-out participants, exactly the
+  search\textquotesingle s value for
+  "three two-stage + C2".
+\item
+  \textbf{Final package}
+  (\texttt{submissions/final\_aj\_ens\_2stage3\_reve},
+  ZIP 87 MB,
+  \texttt{dist/candidates/final\_aj\_ens\_2stage3\_reve.zip}):
+  \texttt{make\ test-submission} passes
+  (locally it needs
+  \texttt{REVE\_POSITIONS\_PATH} and
+  \texttt{HF\_HOME} pointing at our
+  caches; Codabench\textquotesingle s
+  worker sets them); on the warm-up test
+  (63-channel THINGS-EEG2, channels
+  picked by name) it scores 0.3965 (its
+  stage 1 saw
+  THINGS-EEG2\textquotesingle s people),
+  and 0.475 on
+  Alljoined\textquotesingle s former
+  validation people (now in training: a
+  sanity check, not an estimate).
+\end{itemize}
 
 \subsubsection{12.6 Spending the sealed
 uploads}\label{spending-the-sealed-uploads}
