@@ -50,6 +50,8 @@ def main():
     parser.add_argument("--dataset", default=None, help="held-out participants config to use (default: THINGS-EEG2)")
     parser.add_argument("--holdout-subjects", action="store_true", help="select on held-out participants")
     parser.add_argument("--use-val", action="store_true", help="also train on the val split")
+    parser.add_argument("--fold", type=int, default=None, metavar="K",
+                        help="with --holdout-subjects, hold out fold K of configs/cv_folds_<dataset>.json")
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=1)
@@ -79,7 +81,7 @@ def main():
     galleries = None
     if args.holdout_subjects:
         split = heldout_subjects_split(loaders, device, args.batch_size, args.num_workers, include_val=args.use_val,
-                                       dataset=args.dataset)
+                                       dataset=args.dataset, fold=args.fold)
         train_loader, galleries = split["train"], split["galleries"]
     else:
         parts = [loaders["train"].dataset] + ([loaders["val"].dataset] if args.use_val else [])
@@ -134,7 +136,7 @@ def main():
     best = max((r for r in scored if key in r), key=lambda r: r[key]) if scored else {}
     (args.out / "run_config.json").write_text(json.dumps({
         "command": "python " + " ".join(sys.argv), "commit": commit, "tokens": str(args.tokens),
-        "dataset": args.dataset, "holdout_subjects": args.holdout_subjects, "use_val": args.use_val,
+        "dataset": args.dataset, "holdout_subjects": args.holdout_subjects, "fold": args.fold, "use_val": args.use_val,
         "seed": args.seed, "overrides": overrides, "head": head_args, "top_layers": args.top_layers,
         "init_head": str(args.init_head) if args.init_head else None, "train_items": len(train_loader.dataset),
         "fit_minutes": round((time.time() - start) / 60, 1), "epochs_run": len(history),

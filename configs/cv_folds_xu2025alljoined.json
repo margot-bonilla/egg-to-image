@@ -1,0 +1,36 @@
+{
+ "seed": 0,
+ "note": "fold 0 = configs/heldout_subjects_xu2025alljoined.json; folds 1-4 = the other 16, shuffled with seed 0",
+ "folds": [
+  [
+   "Xu2025Alljoined/2",
+   "Xu2025Alljoined/4",
+   "Xu2025Alljoined/14",
+   "Xu2025Alljoined/18"
+  ],
+  [
+   "Xu2025Alljoined/5",
+   "Xu2025Alljoined/6",
+   "Xu2025Alljoined/13",
+   "Xu2025Alljoined/15"
+  ],
+  [
+   "Xu2025Alljoined/1",
+   "Xu2025Alljoined/7",
+   "Xu2025Alljoined/8",
+   "Xu2025Alljoined/10"
+  ],
+  [
+   "Xu2025Alljoined/9",
+   "Xu2025Alljoined/12",
+   "Xu2025Alljoined/16",
+   "Xu2025Alljoined/19"
+  ],
+  [
+   "Xu2025Alljoined/3",
+   "Xu2025Alljoined/11",
+   "Xu2025Alljoined/17",
+   "Xu2025Alljoined/20"
+  ]
+ ]
+}
