@@ -1,0 +1,27 @@
+{
+  "command": "python scripts/train_solver.py submission/submission.py submissions/final_wide_s2 --use-val --seed 2 --cache cache/windows/things_eeg2 --resume --set learn_temperature=True n_epochs=24 temporal_filters=64 spatial_filters=128 sep_filters=256",
+  "commit": "09453357c9455dd4e153b86bb3ccadb499abe840",
+  "solver": "submission/submission.py",
+  "holdout": false,
+  "holdout_subjects": false,
+  "train_subjects": null,
+  "use_val": true,
+  "dataset": null,
+  "batch_size": 256,
+  "cache": "cache/windows/things_eeg2",
+  "extra_cache": null,
+  "avg_reps": 0,
+  "avg_reps_random": false,
+  "seed": 2,
+  "overrides": {
+    "learn_temperature": true,
+    "n_epochs": 24,
+    "temporal_filters": 64,
+    "spatial_filters": 128,
+    "sep_filters": 256
+  },
+  "train_windows": 668400,
+  "fit_minutes": 192.4,
+  "resumed_after_epoch": null,
+  "epochs_run": 24
+}
