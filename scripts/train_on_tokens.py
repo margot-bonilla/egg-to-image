@@ -28,6 +28,17 @@ import torch
 REPO = Path(__file__).resolve().parent.parent
 TRACK = REPO / "external/2026-competition/tracks/image_decoding"
 
+CODE_PATHS = ["submission", "scripts", "src", "configs", "Makefile", "requirements.txt"]
+
+
+def code_state():
+    """(commit, uncommitted code files) at the start of a run, for run_config.json (the audit
+    reruns training from this commit). Only code paths count: e.g. an edited notebook doesn't."""
+    git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True, cwd=REPO).stdout
+    dirty = [line[3:] for line in git("status", "--porcelain", "--untracked-files=no", "--", *CODE_PATHS).splitlines()]
+    return git("rev-parse", "HEAD").strip() + ("+uncommitted-changes" if dirty else ""), dirty
+
+
 
 def load_module(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -63,6 +74,7 @@ def main():
                         help="start the head from a stage-1 run's weights.pt (LP-FT)")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
+    commit, dirty_files = code_state()  # now: the code this run actually uses
     if args.out.exists() and (args.out / "run_config.json").exists():
         print(f"{args.out} already holds a finished run")
         return
@@ -129,13 +141,12 @@ def main():
 
     shutil.copy(REPO / "submission/reve_submission.py", args.out / "submission.py")
     torch.save(head.state_dict(), args.out / "weights.pt")
-    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=REPO).stdout.strip()
     history = getattr(solver, "history", [])
     scored = [r for r in history if "heldout" in r]
     key = "heldout_smooth" if any("heldout_smooth" in r for r in scored) else "heldout"  # the epoch fit kept
     best = max((r for r in scored if key in r), key=lambda r: r[key]) if scored else {}
     (args.out / "run_config.json").write_text(json.dumps({
-        "command": "python " + " ".join(sys.argv), "commit": commit, "tokens": str(args.tokens),
+        "command": "python " + " ".join(sys.argv), "commit": commit, "uncommitted_code": dirty_files, "tokens": str(args.tokens),
         "dataset": args.dataset, "holdout_subjects": args.holdout_subjects, "fold": args.fold, "use_val": args.use_val,
         "seed": args.seed, "overrides": overrides, "head": head_args, "top_layers": args.top_layers,
         "init_head": str(args.init_head) if args.init_head else None, "train_items": len(train_loader.dataset),

@@ -24,6 +24,17 @@ import torch
 REPO = Path(__file__).resolve().parent.parent
 TRACK = REPO / "external/2026-competition/tracks/image_decoding"
 
+CODE_PATHS = ["submission", "scripts", "src", "configs", "Makefile", "requirements.txt"]
+
+
+def code_state():
+    """(commit, uncommitted code files) at the start of a run, for run_config.json (the audit
+    reruns training from this commit). Only code paths count: e.g. an edited notebook doesn't."""
+    git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True, cwd=REPO).stdout
+    dirty = [line[3:] for line in git("status", "--porcelain", "--untracked-files=no", "--", *CODE_PATHS).splitlines()]
+    return git("rev-parse", "HEAD").strip() + ("+uncommitted-changes" if dirty else ""), dirty
+
+
 
 def _curve_summary(history):
     """Epochs run and, with held-out scoring, the best epoch and its score (for run_config.json)."""
@@ -85,6 +96,7 @@ def main():
                         help="also train on NeuralBench's val split (+25%% data on THINGS-EEG2; with --holdout, "
                              "minus the held-out concepts)")
     args = parser.parse_args()
+    commit, dirty_files = code_state()  # now: the code this run actually uses
     args.holdout = args.holdout or args.holdout_subjects
     if args.extra_cache and not args.cache:
         raise SystemExit("--extra-cache needs --cache (the main dataset's window cache)")
@@ -216,12 +228,9 @@ def main():
     if meta.get("ch_names"):  # the training montage: lets inference pick these channels by name
         (args.out / "channels.json").write_text(json.dumps({"ch_names": [str(n) for n in meta["ch_names"]]}))
     # Audit record (left out of the ZIP by `make zip-submission`, like other run_config* files).
-    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=REPO).stdout.strip()
-    dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
-                                capture_output=True, text=True, cwd=REPO).stdout.strip())
     (args.out / "run_config.json").write_text(json.dumps({
         "command": "python " + " ".join(sys.argv),
-        "commit": commit + ("+uncommitted-changes" if dirty else ""),
+        "commit": commit, "uncommitted_code": dirty_files,
         "solver": str(args.solver), "holdout": args.holdout, "holdout_subjects": args.holdout_subjects, "fold": args.fold, "train_subjects": args.train_subjects, "use_val": args.use_val, "dataset": args.dataset,
         "batch_size": args.batch_size, "cache": str(args.cache) if args.cache else None,
         "extra_cache": str(args.extra_cache) if args.extra_cache else None,
