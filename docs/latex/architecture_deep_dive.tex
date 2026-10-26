@@ -214,6 +214,10 @@ Contents
 \item
   \hyperref[12-two-stage-training-and-the-final-ensemble]{Two-stage
   training and the final ensemble}
+\item
+  \hyperref[13-cross-validation-over-participants-the-honest-estimate]{Cross-validation
+  over participants: the honest
+  estimate}
 \end{enumerate}
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
@@ -4179,6 +4183,264 @@ minutes)}\label{slide-outline-5-minutes}
   model families, and how
   we\textquotesingle ll spend 5 sealed
   uploads (§12.5--12.6).
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{13. Cross-validation over
+participants: the honest
+estimate}\label{cross-validation-over-participants-the-honest-estimate}
+
+\subsubsection{13.1 Why: our validation
+people were
+easy}\label{why-our-validation-people-were-easy}
+
+All Alljoined results in §10--§12 were
+measured on \textbf{4} held-out
+participants (2, 4, 14, 18). Scoring
+each of the 20 participants separately
+(Oct 25) showed they are \textbf{easier
+than average}:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.5432}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2346}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1481}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0741}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Ensemble
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Participants 2, 4, 14, 18
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+The other 16
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+All 20
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Validation ensemble (3 two-stage + REVE,
+trained on the other 16) & 0.338
+(unseen) & 0.347 (seen) & 0.345 \\
+Final ensemble (trained on all 20) &
+0.475 (seen) & 0.338 (seen) & 0.366 \\
+\end{longtable}
+}
+
+\begin{itemize}
+\tightlist
+\item
+  Participants differ enormously: from
+  0.09 (participant 9) to 0.57
+  (participant 3), even when seen.
+\item
+  Seeing a person in training is worth
+  \textasciitilde+14 points for these 4
+  (0.338 → 0.475).
+\item
+  Unseen, these 4 score about what the
+  \emph{average} person scores when
+  seen: the 4-person estimate
+  (\textasciitilde0.34) was optimistic.
+\end{itemize}
+
+The official Benchopt replay on
+Alljoined\textquotesingle s test split
+(all 20 participants, all seen in
+training) gives 0.3658 / 0.1248 for the
+final candidate, consistent with these
+per-person numbers.
+
+\subsubsection{13.2
+Design}\label{design}
+
+\texttt{configs/cv\_folds\_xu2025alljoined.json}:
+five folds of four participants (fold 0
+= 2, 4, 14, 18, so the existing runs
+count as fold 0; folds 1--4: the other
+16 shuffled with seed 0):
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.2679}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1607}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1607}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Fold
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+0
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+1
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+2
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+3
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+4
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Held-out participants & 2, 4, 14, 18 &
+5, 6, 13, 15 & 1, 7, 8, 10 & 9, 12, 16,
+19 & 3, 11, 17, 20 \\
+\end{longtable}
+}
+
+\texttt{-\/-fold\ K} (in
+\texttt{train\_solver.py},
+\texttt{train\_on\_tokens.py},
+\texttt{eval\_local.py},
+\texttt{ensemble\_search.py}) holds out
+fold K. For each fold (round 13,
+\texttt{logs/round13.sh},
+\textasciitilde20 h): single-stage (B1
+recipe), two-stage (joint THINGS-EEG2 +
+Alljoined → Alljoined), REVE (stage-1
+head, then top-4 fine-tuning, lr 3e-5),
+then \texttt{ensemble\_search.py} on the
+three
+(\texttt{logs/cv\_f\{K\}\_ensembles.log}).
+All with smoothed early stopping.
+
+\subsubsection{13.3 Results (top-5
+subject-aggregated on each
+fold\textquotesingle s 4 unseen
+participants)}\label{results-top-5-subject-aggregated-on-each-folds-4-unseen-participants}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.2561}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0732}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0732}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0732}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0732}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0732}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0854}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0854}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.2073}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Configuration
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Fold 0
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Fold 1
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Fold 2
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Fold 3
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Fold 4
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Mean}
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+Mean top-1
+\end{minipage} &
+\begin{minipage}[b]{\linewidth}\raggedright
+vs single-stage (folds better)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{Two-stage + REVE} & 0.323 &
+0.196 & 0.273 & 0.166 & 0.240 &
+\textbf{0.240} & 0.076 & \textbf{+2.5}
+(4/5) \\
+Single-stage + two-stage + REVE & 0.323
+& 0.215 & 0.264 & 0.171 & 0.223 & 0.239
+& 0.078 & +2.5 (4/5) \\
+Single-stage + REVE & 0.299 & 0.201 &
+0.260 & 0.159 & 0.241 & 0.232 & 0.073 &
++1.8 (4/5) \\
+Two-stage & 0.314 & 0.206 & 0.250 &
+0.169 & 0.220 & 0.232 & 0.077 & +1.7
+(3/5) \\
+Single-stage + two-stage & 0.296 & 0.226
+& 0.241 & 0.159 & 0.228 & 0.230 & 0.077
+& +1.6 (5/5) \\
+REVE & 0.269 & 0.200 & 0.245 & 0.151 &
+0.231 & 0.219 & 0.065 & +0.5 (3/5) \\
+Single-stage & 0.274 & 0.209 & 0.220 &
+0.147 & 0.223 & 0.215 & 0.064 & -- \\
+\end{longtable}
+}
+
+(Saved models scored once; ensembles =
+equal-weight mean of L2-normalised
+predictions.)
+
+\subsubsection{13.4
+Conclusions}\label{conclusions}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{The final recipe is the best
+  configuration:} two-stage + REVE,
+  \textbf{0.240} on average unseen
+  people, +2.5 over single-stage and
+  better in 4 of 5 folds. The packaged
+  candidate (§12.5: three two-stage
+  seeds + REVE at 1/4, trained on all
+  20) is this recipe with more seeds and
+  people.
+\item
+  \textbf{Realistic expectation for the
+  sealed cohort:
+  \textasciitilde0.24--0.26 top-5,
+  \textasciitilde0.08 top-1}, not
+  \textasciitilde0.34 (fold 0 alone).
+  Extra seeds and four more training
+  participants may add about a point.
+\item
+  \textbf{People dominate the variance:}
+  the same configuration ranges from
+  0.17 (fold 3, with participants 9 and
+  19) to 0.32 (fold 0). The sealed score
+  depends heavily on how easy the 11 new
+  people are;
+  NeuralBench\textquotesingle s
+  published sealed baseline will
+  calibrate it.
+\item
+  \textbf{Each
+  component\textquotesingle s gain is
+  modest but consistent:} two-stage
+  +1.7, REVE alone +0.5, together +2.5,
+  smaller than fold 0 suggested (+3.6
+  for two-stage), same direction.
+\item
+  \textbf{Method lesson:} with
+  person-to-person variation this large,
+  decisions need several held-out groups
+  of people; a single 4-person split can
+  mislead in magnitude.
 \end{enumerate}
 
 \end{document}

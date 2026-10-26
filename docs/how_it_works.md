@@ -322,6 +322,12 @@ on Alljoined alone: **0.308 / 0.311 / 0.316** for three seeds (smoothed), +3.6 t
 alone. **Best ensemble: three two-stage seeds + one fine-tuned REVE ≈ 0.335** (all 63 combinations
 of six models scored; REVE should get about a quarter of the weight). Target for Nov 5: ≥ 0.35.
 
+**Cross-validation (Oct 25–26) corrects the level:** our 4 validation people turned out easier than
+average. Over 5 folds covering all 20 participants, the final recipe (two-stage + REVE) scores
+**0.240** on average unseen people (+2.5 over single-stage, better in 4 of 5 folds), single-stage
+0.215; folds range from 0.17 to 0.32 depending on the people. Realistic sealed expectation:
+**~0.24–0.26 top-5**. Details: [architecture_deep_dive.md](architecture_deep_dive.md) §13.
+
 **Final models (Oct 23):** the recipe retrained on all 20 Alljoined participants with fixed epoch
 counts (three two-stage seeds + REVE), packaged as one Codabench submission (87 MB, contract check
 passed): our first sealed-phase candidate. Full details:

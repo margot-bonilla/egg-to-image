@@ -24,6 +24,7 @@ Contents
 10. [Unseen participants and Alljoined: results and new tools (Oct 21–22)](#10-unseen-participants-and-alljoined-results-and-new-tools-oct-2122)
 11. [Fine-tuning REVE, a foundation model for EEG](#11-fine-tuning-reve-a-foundation-model-for-eeg)
 12. [Two-stage training and the final ensemble](#12-two-stage-training-and-the-final-ensemble)
+13. [Cross-validation over participants: the honest estimate](#13-cross-validation-over-participants-the-honest-estimate)
 
 ---
 
@@ -1348,4 +1349,69 @@ best one last.
    members must get less weight; the winner's curse (§12.4).
 5. **From experiments to the final:** retrain on all 20 participants with fixed epochs, one ZIP
    with both model families, and how we'll spend 5 sealed uploads (§12.5–12.6).
+
+---
+
+## 13. Cross-validation over participants: the honest estimate
+
+### 13.1 Why: our validation people were easy
+
+All Alljoined results in §10–§12 were measured on **4** held-out participants (2, 4, 14, 18). Scoring
+each of the 20 participants separately (Oct 25) showed they are **easier than average**:
+
+| Ensemble | Participants 2, 4, 14, 18 | The other 16 | All 20 |
+|---|---|---|---|
+| Validation ensemble (3 two-stage + REVE, trained on the other 16) | 0.338 (unseen) | 0.347 (seen) | 0.345 |
+| Final ensemble (trained on all 20) | 0.475 (seen) | 0.338 (seen) | 0.366 |
+
+- Participants differ enormously: from 0.09 (participant 9) to 0.57 (participant 3), even when seen.
+- Seeing a person in training is worth ~+14 points for these 4 (0.338 → 0.475).
+- Unseen, these 4 score about what the *average* person scores when seen: the 4-person estimate
+  (~0.34) was optimistic.
+
+The official Benchopt replay on Alljoined's test split (all 20 participants, all seen in training)
+gives 0.3658 / 0.1248 for the final candidate, consistent with these per-person numbers.
+
+### 13.2 Design
+
+`configs/cv_folds_xu2025alljoined.json`: five folds of four participants (fold 0 = 2, 4, 14, 18, so
+the existing runs count as fold 0; folds 1–4: the other 16 shuffled with seed 0):
+
+| Fold | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| Held-out participants | 2, 4, 14, 18 | 5, 6, 13, 15 | 1, 7, 8, 10 | 9, 12, 16, 19 | 3, 11, 17, 20 |
+
+`--fold K` (in `train_solver.py`, `train_on_tokens.py`, `eval_local.py`, `ensemble_search.py`) holds out
+fold K. For each fold (round 13, `logs/round13.sh`, ~20 h): single-stage (B1 recipe), two-stage
+(joint THINGS-EEG2 + Alljoined → Alljoined), REVE (stage-1 head, then top-4 fine-tuning, lr 3e-5),
+then `ensemble_search.py` on the three (`logs/cv_f{K}_ensembles.log`). All with smoothed early stopping.
+
+### 13.3 Results (top-5 subject-aggregated on each fold's 4 unseen participants)
+
+| Configuration | Fold 0 | Fold 1 | Fold 2 | Fold 3 | Fold 4 | **Mean** | Mean top-1 | vs single-stage (folds better) |
+|---|---|---|---|---|---|---|---|---|
+| **Two-stage + REVE** | 0.323 | 0.196 | 0.273 | 0.166 | 0.240 | **0.240** | 0.076 | **+2.5** (4/5) |
+| Single-stage + two-stage + REVE | 0.323 | 0.215 | 0.264 | 0.171 | 0.223 | 0.239 | 0.078 | +2.5 (4/5) |
+| Single-stage + REVE | 0.299 | 0.201 | 0.260 | 0.159 | 0.241 | 0.232 | 0.073 | +1.8 (4/5) |
+| Two-stage | 0.314 | 0.206 | 0.250 | 0.169 | 0.220 | 0.232 | 0.077 | +1.7 (3/5) |
+| Single-stage + two-stage | 0.296 | 0.226 | 0.241 | 0.159 | 0.228 | 0.230 | 0.077 | +1.6 (5/5) |
+| REVE | 0.269 | 0.200 | 0.245 | 0.151 | 0.231 | 0.219 | 0.065 | +0.5 (3/5) |
+| Single-stage | 0.274 | 0.209 | 0.220 | 0.147 | 0.223 | 0.215 | 0.064 | – |
+
+(Saved models scored once; ensembles = equal-weight mean of L2-normalised predictions.)
+
+### 13.4 Conclusions
+
+1. **The final recipe is the best configuration:** two-stage + REVE, **0.240** on average unseen
+   people, +2.5 over single-stage and better in 4 of 5 folds. The packaged candidate (§12.5: three
+   two-stage seeds + REVE at 1/4, trained on all 20) is this recipe with more seeds and people.
+2. **Realistic expectation for the sealed cohort: ~0.24–0.26 top-5, ~0.08 top-1**, not ~0.34
+   (fold 0 alone). Extra seeds and four more training participants may add about a point.
+3. **People dominate the variance:** the same configuration ranges from 0.17 (fold 3, with
+   participants 9 and 19) to 0.32 (fold 0). The sealed score depends heavily on how easy the 11 new
+   people are; NeuralBench's published sealed baseline will calibrate it.
+4. **Each component's gain is modest but consistent:** two-stage +1.7, REVE alone +0.5, together
+   +2.5, smaller than fold 0 suggested (+3.6 for two-stage), same direction.
+5. **Method lesson:** with person-to-person variation this large, decisions need several held-out
+   groups of people; a single 4-person split can mislead in magnitude.
 
