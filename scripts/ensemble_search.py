@@ -42,6 +42,8 @@ def main():
     parser.add_argument("--fold", type=int, default=None, help="cross-validation fold (configs/cv_folds_<dataset>.json)")
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--max-size", type=int, default=4, help="largest ensemble to score")
+    parser.add_argument("--weight-grid", type=float, nargs="*", default=None, metavar="W",
+                        help="also score (1 - W) x first folder + W x second folder, for each W (needs 2 folders)")
     args = parser.parse_args()
 
     sys.path.insert(0, str(TRACK))
@@ -106,6 +108,17 @@ def main():
             results.append((top5, top1, combo))
     for top5, top1, combo in sorted(results, reverse=True):
         print(f"top-5 {top5:.4f}  top-1 {top1:.4f}  {' + '.join(combo)}")
+    if args.weight_grid:
+        a, b = names[:2]
+        for w in args.weight_grid:
+            replays = [Replay([(1 - w) * preds[a][g][i] + w * preds[b][g][i] for i in range(len(preds[a][g]))])
+                       for g in range(len(galleries))]
+            scores = []
+            for g, loader in enumerate(galleries):
+                objective.set_data(train_loader=None, test_loader=loader, n_outputs=n_outputs, **meta)
+                scores.append(objective.evaluate_result(replays[g]))
+            print(f"weight {w:.2f} on {b}: top-5 {np.mean([r['top5_acc_subject_agg'] for r in scores]):.4f}  "
+                  f"top-1 {np.mean([r['top1_acc_subject_agg'] for r in scores]):.4f}")
 
 
 if __name__ == "__main__":
