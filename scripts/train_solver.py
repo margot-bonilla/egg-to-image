@@ -63,7 +63,10 @@ def main():
                         help="override Solver class attributes, e.g. --set dedup=True n_epochs=30")
     parser.add_argument("--num-workers", type=int, default=None,
                         help="data-loading processes (0 = in-process; default 8, or 4 with --cache)")
-    parser.add_argument("--extra-cache", type=Path, default=None, metavar="DIR",
+    parser.add_argument("--exclude-test-concepts", action="store_true",
+                        help="drop extra-cache windows of the 200 THINGS test concepts (THINGS-EEG2's test split, = "
+                             "Alljoined's test images): THINGS-EEG1 shows them all")
+    parser.add_argument("--extra-cache", type=Path, nargs="+", default=None, metavar="DIR",
                         help="also train on another dataset's window cache (its train + val splits, all its "
                              "participants), reduced to this dataset's channels by name, e.g. THINGS-EEG2 "
                              "(63 ch) added to Alljoined-1.6M (32 ch). Never its test split")
@@ -153,17 +156,28 @@ def main():
         from src.data.heldout import _loader
         from src.data.window_cache import CachedWindows
 
-        extra_names = json.loads((args.extra_cache / "meta.json").read_text())["ch_names"]
-        missing = [n for n in meta["ch_names"] if n not in extra_names]
-        if missing:
-            raise SystemExit(f"{args.extra_cache} lacks channels {missing}")
-        channels = [extra_names.index(n) for n in meta["ch_names"]]
-        # train + val only: THINGS-EEG2's test images are Alljoined's test images (our validation)
-        extra = CachedWindows([args.extra_cache / "train", args.extra_cache / "val"], channels=[channels] * 2,
-                              subject_offset=[1000] * 2)
-        loaders["train"] = _loader([loaders["train"].dataset, extra], device, True, args.batch_size, args.num_workers)
-        print(f"Extra training data: {len(extra)} windows from {args.extra_cache} "
-              f"({len(extra_names)} -> {len(channels)} channels)", flush=True)
+        test_concepts = set()
+        if args.exclude_test_concepts:
+            f = json.loads((REPO / "cache/windows/things_eeg2/test/fields.json").read_text())["category"]
+            test_concepts = {f["names"][i] for i in f["index"]}
+        parts = [loaders["train"].dataset]
+        for k, extra_dir in enumerate(args.extra_cache, 1):
+            extra_names = json.loads((extra_dir / "meta.json").read_text())["ch_names"]
+            missing = [n for n in meta["ch_names"] if n not in extra_names]
+            if missing:
+                raise SystemExit(f"{extra_dir} lacks channels {missing}")
+            channels = [extra_names.index(n) for n in meta["ch_names"]]
+            # train + val only: THINGS-EEG2's test images are Alljoined's test images (our validation);
+            # subject ids offset by 1000 x k to keep datasets apart
+            extra = CachedWindows([extra_dir / "train", extra_dir / "val"], channels=[channels] * 2,
+                                  subject_offset=[1000 * k] * 2)
+            n_all = len(extra)
+            if test_concepts:
+                extra = extra.take([i for i, f in enumerate(extra.fields(("category",))) if f["category"] not in test_concepts])
+            parts.append(extra)
+            print(f"Extra training data: {len(extra)} windows from {extra_dir} ({len(extra_names)} -> {len(channels)} "
+                  f"channels{f'; {n_all - len(extra)} test-concept windows dropped' if test_concepts else ''})", flush=True)
+        loaders["train"] = _loader(parts, device, True, args.batch_size, args.num_workers)
     if args.avg_reps:
         from src.data.heldout import _loader
         from src.data.repetitions import RepetitionAveraged
@@ -233,7 +247,8 @@ def main():
         "commit": commit, "uncommitted_code": dirty_files,
         "solver": str(args.solver), "holdout": args.holdout, "holdout_subjects": args.holdout_subjects, "fold": args.fold, "train_subjects": args.train_subjects, "use_val": args.use_val, "dataset": args.dataset,
         "batch_size": args.batch_size, "cache": str(args.cache) if args.cache else None,
-        "extra_cache": str(args.extra_cache) if args.extra_cache else None,
+        "extra_cache": [str(d) for d in args.extra_cache] if args.extra_cache else None,
+        "exclude_test_concepts": args.exclude_test_concepts,
         "init_from": str(args.init_from) if args.init_from else None, "avg_reps": args.avg_reps, "avg_reps_random": args.avg_reps_random,
         "seed": getattr(solver, "seed", None), "overrides": overrides,
         "train_windows": len(loaders["train"].dataset), "fit_minutes": round((time.time() - start) / 60, 1),
