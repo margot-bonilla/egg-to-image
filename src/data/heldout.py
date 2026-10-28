@@ -160,7 +160,7 @@ def _natural(name: str):
 
 def heldout_subjects_split(loaders: dict, device: str, batch_size: int | None = None, num_workers: int = 0,
                            include_val: bool = False, n_train_subjects: int | None = None,
-                           dataset: str | None = None) -> dict:
+                           dataset: str | None = None, fold: int | None = None) -> dict:
     """Return {"train": loader without held-out concepts or participants,
     "galleries": [loader per gallery]}: the held-out participants' windows of the held-out
     concepts, gallery g holding the g-th image (sorted by name) of every concept.
@@ -169,11 +169,17 @@ def heldout_subjects_split(loaders: dict, device: str, batch_size: int | None = 
     than one gallery, which matters with 2 participants and ~4 repetitions per image.
     n_train_subjects: train on only the first N remaining participants (natural order: 1, 2, ..., 10),
     to measure how the unseen-participant score grows with the number of training participants.
+    fold: hold out fold ``fold`` of the participant cross-validation (configs/cv_folds_<dataset>.json;
+    fold 0 = the default held-out participants) instead of the default ones.
     """
-    path = subjects_file(dataset)
-    if not path.exists():
-        raise FileNotFoundError(f"{path} missing: create it once with make_heldout_subjects_file()")
-    subjects = set(json.loads(path.read_text())["subjects"])
+    if fold is not None:
+        path = REPO / "configs" / f"cv_folds_{dataset}.json"
+        subjects = set(json.loads(path.read_text())["folds"][fold])
+    else:
+        path = subjects_file(dataset)
+        if not path.exists():
+            raise FileNotFoundError(f"{path} missing: create it once with make_heldout_subjects_file()")
+        subjects = set(json.loads(path.read_text())["subjects"])
     triggers = {split: window_triggers(loaders[split], ("category", "stem", "subject")) for split in ("train", "val")}
     train_subjects = sorted({str(t["subject"]) for t in triggers["train"]} - subjects, key=_natural)
     train_subjects = set(train_subjects[:n_train_subjects])

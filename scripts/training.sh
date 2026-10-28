@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pause, resume or show the local training runs (scripts/train_solver.py and its data workers).
+# Pause, resume or show the local training runs (scripts/train_solver.py / train_on_tokens.py + workers).
 #
 #     scripts/training.sh pause | resume | status
 #
@@ -7,7 +7,7 @@
 # other apps get it back) and nothing is lost; resume continues exactly where it stopped.
 # The queue scripts in logs/ just wait for the paused run.
 set -u
-mains=$(pgrep -f "scripts/train_solver.py")
+mains=$(pgrep -f "scripts/train_(solver|on_tokens).py")
 case "${1:-status}" in
   pause | resume)
     [ -z "$mains" ] && { echo "No training run."; exit 0; }

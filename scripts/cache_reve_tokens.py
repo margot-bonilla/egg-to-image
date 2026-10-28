@@ -32,11 +32,14 @@ def main():
     parser.add_argument("--splits", nargs="+", default=["train", "val", "test"])
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--limit", type=int, default=None, help="only the first N windows per split (smoke test)")
+    parser.add_argument("--layer", type=int, default=None,
+                        help="tokens after this many of REVE's 22 layers (stage 2 fine-tunes the layers above); "
+                             "default: final tokens")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
     name = args.dataset or "things_eeg2"
     windows = REPO / "cache" / "windows" / name
-    out = args.out or REPO / "cache" / "reve_tokens" / name
+    out = args.out or REPO / "cache" / "reve_tokens" / (name if args.layer is None else f"{name}_L{args.layer}")
 
     sys.path.insert(0, str(TRACK))
     sys.path.insert(0, str(REPO))
@@ -56,7 +59,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     (out / "meta.json").write_text(json.dumps({"ch_names": list(meta["ch_names"]), "sfreq": meta["sfreq"],
                                                "n_times": meta["n_times"], "n_outputs": int(meta["target_shape"][-1]),
-                                               "dataset": args.dataset}, indent=1))
+                                               "dataset": args.dataset, "layer": args.layer}, indent=1))
     for split in args.splits:
         src = CachedWindows([windows / split])
         n = len(src) if args.limit is None else min(args.limit, len(src))
@@ -69,7 +72,7 @@ def main():
         start = time.time()
         for lo in range(0, n, args.batch_size):
             X, _, _ = src.__getitems__(list(range(lo, min(lo + args.batch_size, n))))
-            t = reve.tokens(X.to(device)).to(torch.float16).cpu().numpy()
+            t = reve.tokens(X.to(device), args.layer).to(torch.float16).cpu().numpy()
             if tokens is None:
                 tokens = np.lib.format.open_memmap(d / "X.npy.tmp", mode="w+", dtype=np.float16, shape=(n, *t.shape[1:]))
             tokens[lo:lo + len(t)] = t
