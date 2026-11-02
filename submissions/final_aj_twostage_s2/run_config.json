@@ -1,0 +1,27 @@
+{
+  "command": "python scripts/train_solver.py submission/submission.py submissions/final_aj_twostage_s2 --dataset xu2025alljoined --use-val --cache cache/windows/xu2025alljoined --resume --seed 2 --init-from submissions/final_aj_joint_s2/weights.pt --set learn_temperature=True window_norm=True n_epochs=6 lr=3e-4",
+  "commit": "831a7ac3e4fb0e12b81357980213dcebd21d6acc+uncommitted-changes",
+  "solver": "submission/submission.py",
+  "holdout": false,
+  "holdout_subjects": false,
+  "train_subjects": null,
+  "use_val": true,
+  "dataset": "xu2025alljoined",
+  "batch_size": 256,
+  "cache": "cache/windows/xu2025alljoined",
+  "extra_cache": null,
+  "init_from": "submissions/final_aj_joint_s2/weights.pt",
+  "avg_reps": 0,
+  "avg_reps_random": false,
+  "seed": 2,
+  "overrides": {
+    "learn_temperature": true,
+    "window_norm": true,
+    "n_epochs": 6,
+    "lr": 0.0003
+  },
+  "train_windows": 1335616,
+  "fit_minutes": 12.3,
+  "resumed_after_epoch": null,
+  "epochs_run": 6
+}

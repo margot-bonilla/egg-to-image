@@ -12,7 +12,9 @@ To submit, ZIP ``submission.py`` and ``weights.pt`` at the ROOT of the archive
 
 Only ``torch`` is imported: nothing is installed on the evaluation worker.
 """
+import json
 import math
+import warnings
 from pathlib import Path
 
 import torch
@@ -345,6 +347,30 @@ class EmbeddingEnsemble:
         return torch.stack([m.predict(x) for m in self.models]).mean(0)
 
 
+class ChannelMapped:
+    """Feeds a model trained on one montage from another: picks the training channels by name from
+    the platform's input (e.g. Alljoined's 32 Emotiv channels out of THINGS-EEG2's 63); a channel
+    the input lacks is filled with zeros."""
+
+    def __init__(self, model, index, present, device):
+        self.model = model
+        self.index = torch.tensor(index, device=device)
+        self.present = torch.tensor(present, device=device, dtype=torch.float32)[None, :, None]
+
+    @torch.inference_mode()
+    def predict(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model.predict(x[:, self.index] * self.present)
+
+
+def channel_mapping(trained, available):
+    """(index into the input for each training channel, 1/0 present mask), matching names
+    case-insensitively; missing channels point at input 0 and are zeroed by the mask."""
+    lookup = {str(n).lower(): i for i, n in enumerate(available)}
+    index = [lookup.get(str(n).lower(), 0) for n in trained]
+    present = [str(n).lower() in lookup for n in trained]
+    return index, present
+
+
 class Solver(CompetSolver):
     name = "EEGToImageBaseline"
 
@@ -422,6 +448,23 @@ class Solver(CompetSolver):
                          fourier_freqs=self.fourier_freqs, window_norm=self.window_norm).eval()
 
         submission_dir = Path(meta["submission_dir"])
+        # channels.json (written by scripts/train_solver.py): the montage the weights were trained on.
+        # Without it the input is used as is (all earlier submissions).
+        mapping = None
+        channel_file = submission_dir / "channels.json"
+        if channel_file.exists():
+            trained = json.loads(channel_file.read_text())["ch_names"]
+            available = meta.get("ch_names")
+            if available:
+                mapping = channel_mapping(trained, available)
+                missing = [n for n, ok in zip(trained, mapping[1]) if not ok]
+                if missing:
+                    warnings.warn(f"input lacks training channels {missing}: zero-filled")
+            elif meta["n_chans"] >= len(trained):  # unnamed input (simulated data): first channels
+                mapping = (list(range(len(trained))), [True] * len(trained))
+            else:
+                raise ValueError(f"model needs {len(trained)} channels, input has {meta['n_chans']} unnamed ones")
+            meta = {**meta, "n_chans": len(trained), "ch_names": trained}
         paths = sorted(submission_dir.glob("weights_*.pt")) or [submission_dir / "weights.pt"]
         models = []
         for path in paths:
@@ -429,7 +472,8 @@ class Solver(CompetSolver):
             model = build(**encoder_sizes(state_dict))
             model.load_state_dict(state_dict)
             models.append(model.eval())
-        return models[0] if len(models) == 1 else EmbeddingEnsemble(models)
+        model = models[0] if len(models) == 1 else EmbeddingEnsemble(models)
+        return model if mapping is None else ChannelMapped(model, *mapping, device)
 
     def fit(self, model, train_loader):
         torch.manual_seed(self.seed)  # reproducible shuffling and dropout

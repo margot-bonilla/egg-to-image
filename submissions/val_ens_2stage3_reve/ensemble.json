@@ -1,0 +1,28 @@
+{
+ "groups": [
+  {
+   "kind": "encoder",
+   "files": [
+    "weights_1.pt",
+    "weights_2.pt",
+    "weights_3.pt"
+   ],
+   "weight": 0.75,
+   "sources": [
+    "submissions/m8_b4_twostage",
+    "submissions/m11_twostage_s2",
+    "submissions/m11_twostage_s3"
+   ]
+  },
+  {
+   "kind": "reve",
+   "files": [
+    "reve_1.pt"
+   ],
+   "weight": 0.25,
+   "sources": [
+    "submissions/m10_c2_reve_top4_lr3e5"
+   ]
+  }
+ ]
+}

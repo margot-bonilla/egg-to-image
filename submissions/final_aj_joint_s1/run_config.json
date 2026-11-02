@@ -1,0 +1,26 @@
+{
+  "command": "python scripts/train_solver.py submission/submission.py submissions/final_aj_joint_s1 --dataset xu2025alljoined --use-val --cache cache/windows/xu2025alljoined --resume --seed 1 --extra-cache cache/windows/things_eeg2 --set learn_temperature=True window_norm=True n_epochs=36",
+  "commit": "ea4b5c78060c198bcd8402ab4a38668f3945fbb2+uncommitted-changes",
+  "solver": "submission/submission.py",
+  "holdout": false,
+  "holdout_subjects": false,
+  "train_subjects": null,
+  "use_val": true,
+  "dataset": "xu2025alljoined",
+  "batch_size": 256,
+  "cache": "cache/windows/xu2025alljoined",
+  "extra_cache": "cache/windows/things_eeg2",
+  "init_from": null,
+  "avg_reps": 0,
+  "avg_reps_random": false,
+  "seed": 1,
+  "overrides": {
+    "learn_temperature": true,
+    "window_norm": true,
+    "n_epochs": 36
+  },
+  "train_windows": 2004016,
+  "fit_minutes": 111.1,
+  "resumed_after_epoch": null,
+  "epochs_run": 36
+}

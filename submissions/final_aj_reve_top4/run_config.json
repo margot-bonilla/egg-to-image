@@ -1,0 +1,25 @@
+{
+  "command": "python scripts/train_on_tokens.py cache/reve_tokens/xu2025alljoined_L18 submissions/final_aj_reve_top4 --use-val --seed 1 --resume --top-layers 4 --init-head submissions/final_aj_reve_head/weights.pt --set learn_temperature=True n_epochs=8 lr=3e-5 weight_decay=0.05",
+  "commit": "831a7ac3e4fb0e12b81357980213dcebd21d6acc",
+  "tokens": "cache/reve_tokens/xu2025alljoined_L18",
+  "dataset": null,
+  "holdout_subjects": false,
+  "use_val": true,
+  "seed": 1,
+  "overrides": {
+    "learn_temperature": true,
+    "n_epochs": 8,
+    "lr": 3e-05,
+    "weight_decay": 0.05
+  },
+  "head": {},
+  "top_layers": 4,
+  "init_head": "submissions/final_aj_reve_head/weights.pt",
+  "train_items": 1335616,
+  "fit_minutes": 87.1,
+  "epochs_run": 8,
+  "best_epoch": null,
+  "best_heldout_top5_sa": null,
+  "best_heldout_smooth": null,
+  "resumed_after_epoch": null
+}

@@ -52,6 +52,8 @@ def main():
                              "concepts (configs/heldout_concepts.json), for model selection; "
                              "heldout_subjects = those concepts for 2 held-out participants "
                              "(configs/heldout_subjects.json), mean of 10 galleries")
+    parser.add_argument("--fold", type=int, default=None, metavar="K",
+                        help="with --split heldout_subjects, fold K of configs/cv_folds_<dataset>.json")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR",
                         help="read windows from a scripts/cache_windows.py cache (#14)")
     args = parser.parse_args()
@@ -85,7 +87,8 @@ def main():
     if args.split == "heldout_subjects":
         from src.data.heldout import heldout_subjects_split
 
-        galleries = heldout_subjects_split(loaders, device, args.batch_size, dataset=args.dataset)["galleries"]
+        galleries = heldout_subjects_split(loaders, device, args.batch_size, dataset=args.dataset,
+                                           fold=args.fold)["galleries"]
     elif args.split == "heldout":
         from src.data.heldout import heldout_split
 
