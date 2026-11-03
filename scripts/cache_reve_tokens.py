@@ -1,6 +1,7 @@
 """Run frozen REVE once over a window cache and store its per-channel tokens (stage 1 of REVE transfer).
 
     python scripts/cache_reve_tokens.py [--dataset xu2025alljoined] [--splits train val test] [--batch-size 256]
+        [--layer L] [--channels-from cache/windows/xu2025alljoined]
 
 REVE (brain-bzh/reve-base, braindecode; pretrained on EEG from many people) maps each 1 s window to
 one 512-d token per channel. The official probe (solvers/reve_probe.py) averaged them over channels,
@@ -35,11 +36,16 @@ def main():
     parser.add_argument("--layer", type=int, default=None,
                         help="tokens after this many of REVE's 22 layers (stage 2 fine-tunes the layers above); "
                              "default: final tokens")
+    parser.add_argument("--channels-from", type=Path, default=None, metavar="DIR",
+                        help="window cache whose montage (meta.json ch_names) to keep, by name and in its order, "
+                             "e.g. Alljoined's 32 channels of THINGS-EEG2 for REVE two-stage training "
+                             "(REVE's channel tokens attend to each other, so they depend on the montage)")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
     name = args.dataset or "things_eeg2"
     windows = REPO / "cache" / "windows" / name
-    out = args.out or REPO / "cache" / "reve_tokens" / (name if args.layer is None else f"{name}_L{args.layer}")
+    suffix = f"_{args.channels_from.name}" if args.channels_from else ""
+    out = args.out or REPO / "cache" / "reve_tokens" / (name + suffix + (f"_L{args.layer}" if args.layer is not None else ""))
 
     sys.path.insert(0, str(TRACK))
     sys.path.insert(0, str(REPO))
@@ -54,14 +60,21 @@ def main():
     spec = __import__("importlib.util").util.spec_from_file_location("reve_submission", REPO / "submission/reve_submission.py")
     module = __import__("importlib.util").util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    reve = module.FrozenREVE(meta["ch_names"], meta["sfreq"], meta["n_times"], device)
+    ch_names, channels = list(meta["ch_names"]), None
+    if args.channels_from:
+        ch_names = json.loads((args.channels_from / "meta.json").read_text())["ch_names"]
+        missing = [n for n in ch_names if n not in meta["ch_names"]]
+        if missing:
+            raise SystemExit(f"{windows} lacks channels {missing}")
+        channels = [list(meta["ch_names"]).index(n) for n in ch_names]
+    reve = module.FrozenREVE(ch_names, meta["sfreq"], meta["n_times"], device)
 
     out.mkdir(parents=True, exist_ok=True)
-    (out / "meta.json").write_text(json.dumps({"ch_names": list(meta["ch_names"]), "sfreq": meta["sfreq"],
+    (out / "meta.json").write_text(json.dumps({"ch_names": ch_names, "sfreq": meta["sfreq"],
                                                "n_times": meta["n_times"], "n_outputs": int(meta["target_shape"][-1]),
                                                "dataset": args.dataset, "layer": args.layer}, indent=1))
     for split in args.splits:
-        src = CachedWindows([windows / split])
+        src = CachedWindows([windows / split], channels=[channels])
         n = len(src) if args.limit is None else min(args.limit, len(src))
         d = out / split
         d.mkdir(exist_ok=True)
