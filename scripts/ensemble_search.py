@@ -39,6 +39,9 @@ def main():
     parser.add_argument("--dataset", default=None)
     parser.add_argument("--split", default="heldout_subjects", choices=["test", "heldout", "heldout_subjects"])
     parser.add_argument("--cache", type=Path, default=None)
+    parser.add_argument("--large-gallery", action="store_true",
+                        help="with --split heldout_subjects on Alljoined: the held-out participants' val + test "
+                             "images (~16,700 candidates, like the sealed phase) instead of the 200 test images")
     parser.add_argument("--fold", type=int, default=None, help="cross-validation fold (configs/cv_folds_<dataset>.json)")
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--max-size", type=int, default=4, help="largest ensemble to score")
@@ -66,7 +69,7 @@ def main():
         loaders = cached_loaders(loaders, args.cache, device, args.batch_size, splits=splits)
     if args.split == "heldout_subjects":
         galleries = heldout_subjects_split(loaders, device, args.batch_size, dataset=args.dataset,
-                                           fold=args.fold)["galleries"]
+                                           fold=args.fold, large_gallery=args.large_gallery)["galleries"]
     elif args.split == "heldout":
         galleries = [heldout_split(loaders, device, args.batch_size)["heldout"]]
     else:
