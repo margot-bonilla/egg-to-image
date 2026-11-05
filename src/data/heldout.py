@@ -160,7 +160,7 @@ def _natural(name: str):
 
 def heldout_subjects_split(loaders: dict, device: str, batch_size: int | None = None, num_workers: int = 0,
                            include_val: bool = False, n_train_subjects: int | None = None,
-                           dataset: str | None = None, fold: int | None = None) -> dict:
+                           dataset: str | None = None, fold: int | None = None, large_gallery: bool = False) -> dict:
     """Return {"train": loader without held-out concepts or participants,
     "galleries": [loader per gallery]}: the held-out participants' windows of the held-out
     concepts, gallery g holding the g-th image (sorted by name) of every concept.
@@ -171,6 +171,9 @@ def heldout_subjects_split(loaders: dict, device: str, batch_size: int | None = 
     to measure how the unseen-participant score grows with the number of training participants.
     fold: hold out fold ``fold`` of the participant cross-validation (configs/cv_folds_<dataset>.json;
     fold 0 = the default held-out participants) instead of the default ones.
+    large_gallery (Alljoined): score on the held-out participants' val + test windows, a gallery of
+    ~16,700 images like the sealed phase's (its baselines sit at ~0.0003 top-5, i.e. chance for ~16k
+    candidates), instead of the 200 test images.
     """
     if fold is not None:
         path = REPO / "configs" / f"cv_folds_{dataset}.json"
@@ -189,10 +192,13 @@ def heldout_subjects_split(loaders: dict, device: str, batch_size: int | None = 
         train_parts = [_subset(loaders[split].dataset, [i for i, t in enumerate(triggers[split])
                                                         if str(t["subject"]) in train_subjects])
                        for split in (("train", "val") if include_val else ("train",))]
-        test = window_triggers(loaders["test"], ("subject",))
-        gallery = _subset(loaders["test"].dataset, [i for i, t in enumerate(test) if str(t["subject"]) in subjects])
+        held = {"test": window_triggers(loaders["test"], ("subject",))}
+        if large_gallery:
+            held["val"] = triggers["val"]
+        gallery = [_subset(loaders[split].dataset, [i for i, t in enumerate(trig) if str(t["subject"]) in subjects])
+                   for split, trig in held.items()]
         return {"train": _loader(train_parts, device, True, bs, num_workers),
-                "galleries": [_loader([gallery], device, False, bs, num_workers)]}
+                "galleries": [_loader(gallery, device, False, bs, num_workers)]}
 
     concepts = set(json.loads(HELDOUT_FILE.read_text())["images"])
     train_parts, held = [], []

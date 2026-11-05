@@ -52,6 +52,9 @@ def main():
                              "concepts (configs/heldout_concepts.json), for model selection; "
                              "heldout_subjects = those concepts for 2 held-out participants "
                              "(configs/heldout_subjects.json), mean of 10 galleries")
+    parser.add_argument("--large-gallery", action="store_true",
+                        help="with --split heldout_subjects on Alljoined: the held-out participants' val + test "
+                             "images (~16,700 candidates, like the sealed phase) instead of the 200 test images")
     parser.add_argument("--fold", type=int, default=None, metavar="K",
                         help="with --split heldout_subjects, fold K of configs/cv_folds_<dataset>.json")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR",
@@ -88,7 +91,7 @@ def main():
         from src.data.heldout import heldout_subjects_split
 
         galleries = heldout_subjects_split(loaders, device, args.batch_size, dataset=args.dataset,
-                                           fold=args.fold)["galleries"]
+                                           fold=args.fold, large_gallery=args.large_gallery)["galleries"]
     elif args.split == "heldout":
         from src.data.heldout import heldout_split
 

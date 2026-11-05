@@ -2,6 +2,7 @@
 
     python scripts/train_on_tokens.py TOKENS OUT_FOLDER [--dataset xu2025alljoined] [--holdout-subjects]
         [--use-val] [--seed N] [--set name=value ...] [--head name=value ...]
+        [--top-layers K] [--init-head WEIGHTS | --init-from WEIGHTS] [--extra-tokens DIR ...]
 
 TOKENS = a scripts/cache_reve_tokens.py folder (e.g. cache/reve_tokens/xu2025alljoined). Training
 reuses submission/submission.py's Solver.fit unchanged (CLIP loss, learnable temperature, lr
@@ -72,6 +73,13 @@ def main():
                         help="stage 2: also fine-tune REVE's top K layers (TOKENS must be cached after layer 22-K)")
     parser.add_argument("--init-head", type=Path, default=None, metavar="WEIGHTS",
                         help="start the head from a stage-1 run's weights.pt (LP-FT)")
+    parser.add_argument("--init-from", type=Path, default=None, metavar="WEIGHTS",
+                        help="start the whole model (head, and with --top-layers the fine-tuned layers) from a "
+                             "previous run's weights.pt: stage 2 of REVE two-stage training")
+    parser.add_argument("--extra-tokens", type=Path, nargs="+", default=None, metavar="DIR",
+                        help="also train on these token caches' train + val splits (same layer and montage as "
+                             "TOKENS, e.g. THINGS-EEG2 cached with --channels-from Alljoined): stage 1 of REVE "
+                             "two-stage training; subject ids offset by 1000 x k")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     commit, dirty_files = code_state()  # now: the code this run actually uses
@@ -97,6 +105,17 @@ def main():
         train_loader, galleries = split["train"], split["galleries"]
     else:
         parts = [loaders["train"].dataset] + ([loaders["val"].dataset] if args.use_val else [])
+        train_loader = _loader(parts, device, True, args.batch_size, args.num_workers)
+    if args.extra_tokens:
+        parts = [train_loader.dataset]
+        for k, extra_dir in enumerate(args.extra_tokens, 1):
+            extra_meta = json.loads((extra_dir / "meta.json").read_text())
+            if extra_meta["ch_names"] != meta["ch_names"] or extra_meta.get("layer") != meta.get("layer"):
+                raise SystemExit(f"{extra_dir} has another montage or layer than {args.tokens}")
+            # train + val only: THINGS-EEG2's test images are Alljoined's test images (our validation)
+            extra = CachedWindows([extra_dir / "train", extra_dir / "val"], subject_offset=[1000 * k] * 2)
+            parts.append(extra)
+            print(f"Extra training data: {len(extra)} token sets from {extra_dir}", flush=True)
         train_loader = _loader(parts, device, True, args.batch_size, args.num_workers)
     print(f"Train: {len(train_loader.dataset)} token sets of shape {tuple(loaders['train'].dataset.parts[0]['X'].shape[1:])}"
           f", device={device}", flush=True)
@@ -135,6 +154,9 @@ def main():
         del reve
         print(f"Fine-tuning REVE layers {start + 1}-{len(blocks)} "
               f"({sum(p.numel() for p in head.layers.parameters()) / 1e6:.1f}M parameters) + head", flush=True)
+    if args.init_from:
+        head.load_state_dict(torch.load(args.init_from, map_location=device, weights_only=True))
+        print(f"Model initialised from {args.init_from}", flush=True)
     start = time.time()
     solver.fit(head, train_loader)
     print(f"fit done in {(time.time() - start) / 60:.1f} min", flush=True)
@@ -149,7 +171,9 @@ def main():
         "command": "python " + " ".join(sys.argv), "commit": commit, "uncommitted_code": dirty_files, "tokens": str(args.tokens),
         "dataset": args.dataset, "holdout_subjects": args.holdout_subjects, "fold": args.fold, "use_val": args.use_val,
         "seed": args.seed, "overrides": overrides, "head": head_args, "top_layers": args.top_layers,
-        "init_head": str(args.init_head) if args.init_head else None, "train_items": len(train_loader.dataset),
+        "init_head": str(args.init_head) if args.init_head else None,
+        "init_from": str(args.init_from) if args.init_from else None,
+        "extra_tokens": [str(d) for d in args.extra_tokens] if args.extra_tokens else None, "train_items": len(train_loader.dataset),
         "fit_minutes": round((time.time() - start) / 60, 1), "epochs_run": len(history),
         "best_epoch": best.get("epoch"), "best_heldout_top5_sa": round(best["heldout"], 4) if best else None,
         "best_heldout_smooth": round(best["heldout_smooth"], 4) if "heldout_smooth" in best else None,
