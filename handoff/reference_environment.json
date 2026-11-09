@@ -1,0 +1,16 @@
+{
+  "note": "Reference environment used for CPU validation; not a promise of cross-device bit identity or a tested fresh installation.",
+  "python": "3.12",
+  "torch": "2.14.1",
+  "numpy": "2.5.3",
+  "braindecode": "1.8.1",
+  "benchopt": "1.10.0",
+  "neuralbench": "0.4.0",
+  "neuralset": "0.4.0",
+  "neuralfetch": "0.4.0",
+  "neuraltrain": "0.4.0",
+  "exca": "0.5.29",
+  "transformers": "5.18.0",
+  "competition_commit": "a66bc23d1a0e686b895c093a642b45c74970758b",
+  "reve_revision": "33841986f6cc1438d9dcdbca5a2137d60f6007d9"
+}

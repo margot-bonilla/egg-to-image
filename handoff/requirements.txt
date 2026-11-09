@@ -1,0 +1,7 @@
+# Install a mutually compatible torch/torchvision/torchaudio build for the host first.
+# The original competition ecosystem pins remain unchanged.
+-r ../requirements.txt
+numpy==2.5.3
+braindecode==1.8.1
+benchopt==1.10.0
+transformers==5.18.0

@@ -63,3 +63,4 @@ results/
 # Local, machine-specific configs and logs
 *.local.json
 /logs/
+/handoff_runs/
